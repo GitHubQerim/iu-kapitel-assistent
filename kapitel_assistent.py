@@ -4,7 +4,6 @@ import argparse
 import json
 import re
 import subprocess
-import sys
 from pathlib import Path
 
 from pypdf import PdfReader
@@ -19,7 +18,7 @@ Fasse den folgenden Kapiteltext als prägnante Wiedereinstiegs-Zusammenfassung z
 
 FLASHCARDS_PROMPT = """Erstelle aus dem folgenden Kapiteltext eines Studienskripts Karteikarten (Frage/Antwort) zum Lernen mit Spaced Repetition.
 
-Antworte AUSSCHLIESSLICH mit einem JSON-Array, keine Erklärung, kein Markdown-Codeblock, kein einleitender Text. Format exakt:
+Antworte AUSSCHLIESSLICH mit einem JSON-Array, nichts davor und nichts danach (keine Erklärung, kein Markdown-Codeblock, keine Rückfrage). Format exakt:
 [{{"front": "Frage", "back": "Antwort"}}, ...]
 
 ---
@@ -69,15 +68,53 @@ def save_chapter_images(all_image_pages, out_dir: Path):
     return saved
 
 
-def prompt_and_wait(prompt: str, kind: str) -> str:
+def sanitize_json_candidate(text: str) -> str:
+    replacements = {"“": '"', "”": '"', "‘": "'", "’": "'"}
+    for bad, good in replacements.items():
+        text = text.replace(bad, good)
+    return re.sub(r",\s*([\]}])", r"\1", text)
+
+
+def parse_flashcards(response: str):
+    text = response.strip()
+    fence_match = re.search(r"```(?:json)?\s*\n?(.*?)\n?```", text, re.DOTALL)
+    if fence_match:
+        text = fence_match.group(1)
+
+    match = re.search(r"\[.*\]", text, re.DOTALL)
+    if not match:
+        raise ValueError("Kein JSON-Array in der Antwort gefunden.")
+
+    candidate = match.group(0)
+    for attempt in (candidate, sanitize_json_candidate(candidate)):
+        try:
+            return json.loads(attempt)
+        except json.JSONDecodeError as exc:
+            last_error = exc
+    raise ValueError(f"JSON konnte nicht geparst werden ({last_error}).")
+
+
+def prompt_and_wait(prompt: str, kind: str, parse_fn=lambda r: r):
+    """Kopiert den Prompt in die Zwischenablage und wartet auf eine gültige Antwort.
+
+    Bei einem Parse-Fehler wird NICHT abgebrochen: der Prompt bleibt in der
+    Zwischenablage, man kann die Antwort im Chat-Tool korrigieren, neu kopieren
+    und es erneut versuchen, ohne den ganzen Befehl neu starten zu müssen.
+    """
     copy_to_clipboard(prompt)
     print(f"Prompt in die Zwischenablage kopiert ({kind}).")
     print("Füge ihn in ChatGPT/Claude/Gemini (o.ä.) ein und kopiere die Antwort zurück in die Zwischenablage.")
-    input("Drücke Enter, sobald die Antwort in der Zwischenablage ist...")
-    response = read_clipboard().strip()
-    if not response:
-        sys.exit("Zwischenablage ist leer, abgebrochen.")
-    return response
+    while True:
+        input("Drücke Enter, sobald die Antwort in der Zwischenablage ist (Strg+C zum Abbrechen)...")
+        response = read_clipboard().strip()
+        if not response:
+            print("Zwischenablage ist leer. Antwort kopieren und erneut Enter drücken.")
+            continue
+        try:
+            return parse_fn(response)
+        except ValueError as exc:
+            print(f"Antwort konnte nicht verarbeitet werden: {exc}")
+            print("Antwort im Chat-Tool korrigieren (oder neu anfragen), erneut kopieren und wieder Enter drücken.")
 
 
 def cmd_summary(args):
@@ -106,15 +143,7 @@ def cmd_flashcards(args):
 
     pdf_paths = [Path(p) for p in args.pdfs]
     content, image_pages = build_content(pdf_paths)
-    response = prompt_and_wait(FLASHCARDS_PROMPT.format(content=content), "Karteikarten")
-
-    match = re.search(r"\[.*\]", response, re.DOTALL)
-    if not match:
-        sys.exit("Konnte kein JSON-Array in der Zwischenablage finden. Antwort war:\n" + response)
-    try:
-        cards = json.loads(match.group(0))
-    except json.JSONDecodeError as exc:
-        sys.exit(f"JSON konnte nicht geparst werden: {exc}")
+    cards = prompt_and_wait(FLASHCARDS_PROMPT.format(content=content), "Karteikarten", parse_flashcards)
 
     out_path = Path(args.out)
     deck_name = pdf_paths[0].parent.name or pdf_paths[0].stem
