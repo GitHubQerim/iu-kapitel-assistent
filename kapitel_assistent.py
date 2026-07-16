@@ -91,7 +91,20 @@ def parse_flashcards(response: str):
             return json.loads(attempt)
         except json.JSONDecodeError as exc:
             last_error = exc
+
+    from json_repair import repair_json
+
+    try:
+        repaired = json.loads(repair_json(candidate))
+        if repaired:
+            return repaired
+    except (json.JSONDecodeError, ValueError):
+        pass
     raise ValueError(f"JSON konnte nicht geparst werden ({last_error}).")
+
+
+def is_unchanged_prompt(response: str, prompt: str) -> bool:
+    return response.strip() == prompt.strip()
 
 
 def prompt_and_wait(prompt: str, kind: str, parse_fn=lambda r: r):
@@ -103,12 +116,16 @@ def prompt_and_wait(prompt: str, kind: str, parse_fn=lambda r: r):
     """
     copy_to_clipboard(prompt)
     print(f"Prompt in die Zwischenablage kopiert ({kind}).")
-    print("Füge ihn in ChatGPT/Claude/Gemini (o.ä.) ein und kopiere die Antwort zurück in die Zwischenablage.")
+    print("1) Füge ihn in ChatGPT/Claude/Gemini (o.ä.) ein  2) warte die Antwort ab  3) kopiere NUR die Antwort")
     while True:
-        input("Drücke Enter, sobald die Antwort in der Zwischenablage ist (Strg+C zum Abbrechen)...")
+        input("Drücke Enter, sobald die Antwort (nicht der Prompt!) in der Zwischenablage ist (Strg+C zum Abbrechen)...")
         response = read_clipboard().strip()
         if not response:
             print("Zwischenablage ist leer. Antwort kopieren und erneut Enter drücken.")
+            continue
+        if is_unchanged_prompt(response, prompt):
+            print("In der Zwischenablage steht noch der Prompt selbst, nicht die Antwort des Chat-Tools.")
+            print("Erst den Prompt einfügen und abschicken, die Antwort abwarten, DIE ANTWORT kopieren – dann erneut Enter.")
             continue
         try:
             return parse_fn(response)

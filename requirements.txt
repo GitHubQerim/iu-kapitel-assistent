@@ -1,2 +1,3 @@
 pypdf[image]
 genanki
+json_repair

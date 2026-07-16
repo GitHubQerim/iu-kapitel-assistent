@@ -9,6 +9,7 @@ from kapitel_assistent import (
     SUMMARY_PROMPT,
     build_content,
     copy_to_clipboard,
+    is_unchanged_prompt,
     parse_flashcards,
     read_clipboard,
     save_chapter_images,
@@ -23,7 +24,8 @@ class App(tk.Tk):
         self.pdf_paths = []
         self.mode = tk.StringVar(value="summary")
         self.output_path = tk.StringVar()
-        self._pending = None  # (content, image_pages) während auf Antwort gewartet wird
+        self._pending = None  # (pdf_paths, content, image_pages) während auf Antwort gewartet wird
+        self._last_prompt = None
         self._build()
 
     def _build(self):
@@ -48,6 +50,12 @@ class App(tk.Tk):
         tk.Label(frame_out, text="Ausgabedatei:").pack(side="left")
         tk.Entry(frame_out, textvariable=self.output_path).pack(side="left", fill="x", expand=True, padx=6)
         tk.Button(frame_out, text="Wählen...", command=self.pick_output).pack(side="left")
+
+        instructions = (
+            "Ablauf:  1) Prompt kopieren  →  2) in ChatGPT/Claude/Gemini (o.ä.) einfügen & abschicken\n"
+            "→  3) dort die Antwort kopieren  →  4) hierher zurück und auf 'Antwort einlesen' klicken."
+        )
+        tk.Label(self, text=instructions, justify="left", fg="#888").pack(fill="x", padx=10, pady=(0, 4))
 
         style = ttk.Style(self)
         style.configure("Assist.TButton", font=("SF Pro Text", 12, "bold"), padding=(16, 6))
@@ -98,8 +106,11 @@ class App(tk.Tk):
         self._pending = (pdf_paths, content, image_pages)
 
         template = FLASHCARDS_PROMPT if self.mode.get() == "flashcards" else SUMMARY_PROMPT
-        copy_to_clipboard(template.format(content=content))
-        self.write_log("Prompt in die Zwischenablage kopiert. Füge ihn in ChatGPT/Claude/Gemini (o.ä.) ein.")
+        prompt = template.format(content=content)
+        self._last_prompt = prompt
+        copy_to_clipboard(prompt)
+        self.write_log("Prompt in die Zwischenablage kopiert. Füge ihn in ChatGPT/Claude/Gemini (o.ä.) ein, "
+                        "schick ihn ab, und kopiere danach NUR die Antwort zurück.")
 
     def read_response(self):
         if not self._pending:
@@ -113,6 +124,11 @@ class App(tk.Tk):
         response = read_clipboard().strip()
         if not response:
             self.write_log("Zwischenablage ist leer. Antwort im Chat-Tool kopieren und erneut klicken.")
+            return
+        if is_unchanged_prompt(response, self._last_prompt):
+            self.write_log("In der Zwischenablage steht noch der Prompt selbst, nicht die Antwort des Chat-Tools.")
+            self.write_log("Erst den Prompt dort einfügen & abschicken, die Antwort abwarten, DIE ANTWORT kopieren "
+                            "– dann hier erneut klicken.")
             return
 
         out_path = Path(self.output_path.get())
