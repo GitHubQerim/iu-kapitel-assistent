@@ -26,14 +26,50 @@ Antworte AUSSCHLIESSLICH mit einem JSON-Array, nichts davor und nichts danach (k
 """
 
 
+CAPTION_START_RE = re.compile(r"^Abbildung\s+\d+[:.]")
+SOURCE_LINE_RE = re.compile(r"^Quelle:")
+
+
+def extract_captions(page_text: str):
+    """Findet 'Abbildung N: ...'-Bildunterschriften im extrahierten Seitentext.
+
+    IU-Skripte platzieren diese direkt bei der Abbildung, gefolgt von einer
+    'Quelle: ...'-Zeile. Eine Unterschrift kann über mehrere Zeilen umbrechen.
+    """
+    captions = []
+    lines = page_text.splitlines()
+    i = 0
+    while i < len(lines):
+        line = lines[i].strip()
+        if CAPTION_START_RE.match(line):
+            parts = [line]
+            i += 1
+            while i < len(lines):
+                nxt = lines[i].strip()
+                if SOURCE_LINE_RE.match(nxt) or CAPTION_START_RE.match(nxt):
+                    break
+                if nxt:
+                    parts.append(nxt)
+                i += 1
+            captions.append(" ".join(parts))
+            continue
+        i += 1
+    return captions
+
+
 def extract_chapter(pdf_path: Path):
     reader = PdfReader(pdf_path)
     text_parts = []
     image_pages = []
     for i, page in enumerate(reader.pages, start=1):
-        text_parts.append(page.extract_text() or "")
+        page_text = page.extract_text() or ""
+        text_parts.append(page_text)
         if page.images:
-            image_pages.append((i, list(page.images)))
+            images = list(page.images)
+            captions = extract_captions(page_text)
+            if len(captions) != len(images):
+                captions = [None] * len(images)
+            image_pages.append((i, images, captions))
     return "\n".join(text_parts), image_pages
 
 
@@ -58,13 +94,13 @@ def read_clipboard() -> str:
 def save_chapter_images(all_image_pages, out_dir: Path):
     saved = []
     for pdf_path, pages in all_image_pages:
-        for page_num, images in pages:
-            for img in images:
+        for page_num, images, captions in pages:
+            for img, caption in zip(images, captions):
                 ext = Path(img.name).suffix or ".png"
                 out_dir.mkdir(parents=True, exist_ok=True)
                 out_path = out_dir / f"{pdf_path.stem}_seite{page_num}_{Path(img.name).stem}{ext}"
                 out_path.write_bytes(img.data)
-                saved.append((pdf_path, page_num, out_path))
+                saved.append((pdf_path, page_num, out_path, caption))
     return saved
 
 
@@ -146,9 +182,10 @@ def cmd_summary(args):
     if saved_images:
         with out_path.open("a", encoding="utf-8") as f:
             f.write("\n\n## Bilder aus diesem Kapitel\n\n")
-            for pdf_path, page_num, img_path in saved_images:
+            for pdf_path, page_num, img_path, caption in saved_images:
                 rel = img_path.relative_to(out_path.parent)
-                f.write(f"![{pdf_path.stem} Seite {page_num}]({rel})\n\n")
+                label = caption or f"{pdf_path.stem} Seite {page_num}"
+                f.write(f"![{label}]({rel})\n\n")
 
     print(f"Zusammenfassung gespeichert: {out_path}")
     if saved_images:
@@ -186,11 +223,12 @@ def cmd_flashcards(args):
 
     saved_images = save_chapter_images(image_pages, out_path.parent / f"{out_path.stem}_bilder")
     media_files = []
-    for pdf_path, page_num, img_path in saved_images:
+    for pdf_path, page_num, img_path, caption in saved_images:
+        front = caption or f"Bild – {pdf_path.stem}, Seite {page_num}"
         deck.add_note(
             genanki.Note(
                 model=model,
-                fields=[f"Bild – {pdf_path.stem}, Seite {page_num}", f'<img src="{img_path.name}">'],
+                fields=[front, f'<img src="{img_path.name}">'],
             )
         )
         media_files.append(str(img_path))
