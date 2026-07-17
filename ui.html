@@ -337,6 +337,11 @@
     <button class="btn" id="pickOutputBtn">Wählen…</button>
   </div>
 
+  <div class="row" id="deckNameRow" style="display: none;">
+    <label class="field-label" for="deckName">Deck-Name</label>
+    <input type="text" id="deckName" placeholder="z. B. DLBMIUID01-01::Kapitel 8">
+  </div>
+
   <div class="divider" aria-hidden="true"></div>
 
   <div class="actions">
@@ -375,6 +380,8 @@
   const outputInput = el("outputPath");
   const revealBtn = el("revealBtn");
   const fileNameEl = el("fileName");
+  const deckNameRow = el("deckNameRow");
+  const deckNameInput = el("deckName");
 
   function logLine(text, kind) {
     if (logEl.querySelector(".placeholder")) logEl.innerHTML = "";
@@ -389,6 +396,7 @@
     mode = newMode;
     el("modeSummary").setAttribute("aria-pressed", String(newMode === "summary"));
     el("modeFlashcards").setAttribute("aria-pressed", String(newMode === "flashcards"));
+    deckNameRow.style.display = newMode === "flashcards" ? "flex" : "none";
 
     const newExt = newMode === "flashcards" ? "apkg" : "md";
     const current = outputInput.value.trim();
@@ -415,6 +423,9 @@
         const ext = mode === "flashcards" ? "apkg" : "md";
         outputInput.value = result.default_output_dir + "/" + result.default_output_base + "." + ext;
       }
+      if (!deckNameInput.value.trim()) {
+        deckNameInput.value = result.default_deck_name;
+      }
     }
   });
 
@@ -435,7 +446,7 @@
   });
 
   el("readResponseBtn").addEventListener("click", async () => {
-    const result = await window.pywebview.api.read_response(mode, outputInput.value.trim());
+    const result = await window.pywebview.api.read_response(mode, outputInput.value.trim(), deckNameInput.value.trim());
     if (!result.ok) {
       logLine(result.error, "error");
       return;

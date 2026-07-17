@@ -16,14 +16,35 @@ Fasse den folgenden Kapiteltext als prägnante Wiedereinstiegs-Zusammenfassung z
 {content}
 """
 
-FLASHCARDS_PROMPT = """Erstelle aus dem folgenden Kapiteltext eines Studienskripts Karteikarten (Frage/Antwort) zum Lernen mit Spaced Repetition.
+def build_flashcards_prompt(content: str, captions: list) -> str:
+    intro = (
+        "Erstelle aus dem folgenden Kapiteltext eines Studienskripts Karteikarten "
+        "(Frage/Antwort) zum Lernen mit Spaced Repetition.\n"
+    )
+    image_field_hint = ""
+    if captions:
+        caption_block = "\n".join(f"- {c}" for c in captions)
+        intro += (
+            "\nIm Kapitel gibt es außerdem folgende Abbildungen. Erstelle zu JEDER davon "
+            "ebenfalls eine Karteikarte mit einer echten Verständnisfrage (nicht nur die "
+            "Bildunterschrift als Frage), die durch die Abbildung beantwortet bzw. erklärt "
+            'wird. Setze bei diesen Karten zusätzlich ein Feld "image_caption" auf EXAKT '
+            f"den folgenden Text:\n{caption_block}\n"
+        )
+        image_field_hint = (
+            '\nKarten zu einer Abbildung bekommen zusätzlich das Feld "image_caption" mit '
+            "dem exakten Bildunterschriften-Text von oben, andere Karten lassen dieses Feld weg."
+        )
 
-Antworte AUSSCHLIESSLICH mit einem JSON-Array, nichts davor und nichts danach (keine Erklärung, kein Markdown-Codeblock, keine Rückfrage). Format exakt:
-[{{"front": "Frage", "back": "Antwort"}}, ...]
-
----
-{content}
-"""
+    return (
+        f"{intro}\n"
+        "Antworte AUSSCHLIESSLICH mit einem JSON-Array, nichts davor und nichts danach "
+        "(keine Erklärung, kein Markdown-Codeblock, keine Rückfrage). Format exakt:\n"
+        '[{"front": "Frage", "back": "Antwort"}, ...]'
+        f"{image_field_hint}\n"
+        "\n---\n"
+        f"{content}\n"
+    )
 
 
 CAPTION_START_RE = re.compile(r"^Abbildung\s+\d+[:.]")
@@ -81,6 +102,52 @@ def build_content(pdf_paths):
         sections.append(f"## Quelle: {pdf_path.name}\n\n{text}")
         all_image_pages.append((pdf_path, image_pages))
     return "\n\n".join(sections), all_image_pages
+
+
+def collect_all_captions(all_image_pages):
+    captions = []
+    for _, image_pages in all_image_pages:
+        for _, _, page_captions in image_pages:
+            captions.extend(c for c in page_captions if c)
+    return captions
+
+
+ABB_NUM_RE = re.compile(r"Abbildung\s+(\d+)")
+
+
+def caption_key(text):
+    if not text:
+        return None
+    match = ABB_NUM_RE.search(text)
+    return match.group(1) if match else text.strip()
+
+
+def attach_images_to_cards(cards, saved_images):
+    """Hängt Bilder an die passende KI-generierte Karte an (Matching über die Abbildungsnummer).
+
+    Gibt die Bilder zurück, die keiner Karte zugeordnet werden konnten (z. B. weil die KI
+    keine Frage dazu erstellt hat) sowie die Pfade der bereits eingebetteten Bilder.
+    """
+    by_key = {}
+    for entry in saved_images:
+        _, _, _, caption = entry
+        key = caption_key(caption)
+        if key is not None:
+            by_key.setdefault(key, []).append(entry)
+
+    embedded_paths = []
+    for card in cards:
+        cap = card.get("image_caption")
+        if not cap:
+            continue
+        matches = by_key.get(caption_key(cap))
+        if matches:
+            _, _, img_path, _ = matches.pop(0)
+            card["back"] = f'{card["back"]}<br><img src="{img_path.name}">'
+            embedded_paths.append(img_path)
+
+    leftover = [entry for entries in by_key.values() for entry in entries]
+    return leftover, embedded_paths
 
 
 def copy_to_clipboard(text: str):
@@ -192,15 +259,9 @@ def cmd_summary(args):
         print(f"{len(saved_images)} Bild(er) aus dem Kapitel mit gespeichert.")
 
 
-def cmd_flashcards(args):
+def build_flashcards_deck(cards, image_pages, out_path: Path, deck_name: str):
     import genanki
 
-    pdf_paths = [Path(p) for p in args.pdfs]
-    content, image_pages = build_content(pdf_paths)
-    cards = prompt_and_wait(FLASHCARDS_PROMPT.format(content=content), "Karteikarten", parse_flashcards)
-
-    out_path = Path(args.out)
-    deck_name = pdf_paths[0].parent.name or pdf_paths[0].stem
     deck_id = abs(hash(deck_name)) % (10**10)
     model_id = abs(hash(deck_name + "_model")) % (10**10)
 
@@ -218,26 +279,36 @@ def cmd_flashcards(args):
     )
     deck = genanki.Deck(deck_id, deck_name)
 
+    saved_images = save_chapter_images(image_pages, out_path.parent / f"{out_path.stem}_bilder")
+    leftover_images, embedded_paths = attach_images_to_cards(cards, saved_images)
+
     for card in cards:
         deck.add_note(genanki.Note(model=model, fields=[card["front"], card["back"]]))
 
-    saved_images = save_chapter_images(image_pages, out_path.parent / f"{out_path.stem}_bilder")
-    media_files = []
-    for pdf_path, page_num, img_path, caption in saved_images:
+    media_files = [str(p) for p in embedded_paths]
+    for pdf_path, page_num, img_path, caption in leftover_images:
         front = caption or f"Bild – {pdf_path.stem}, Seite {page_num}"
-        deck.add_note(
-            genanki.Note(
-                model=model,
-                fields=[front, f'<img src="{img_path.name}">'],
-            )
-        )
+        deck.add_note(genanki.Note(model=model, fields=[front, f'<img src="{img_path.name}">']))
         media_files.append(str(img_path))
 
     package = genanki.Package(deck)
     package.media_files = media_files
     package.write_to_file(str(out_path))
 
-    print(f"{len(cards)} Karteikarte(n) + {len(saved_images)} Bild-Karte(n) gespeichert: {out_path}")
+    return len(cards), len(embedded_paths), len(leftover_images)
+
+
+def cmd_flashcards(args):
+    pdf_paths = [Path(p) for p in args.pdfs]
+    content, image_pages = build_content(pdf_paths)
+    captions = collect_all_captions(image_pages)
+    cards = prompt_and_wait(build_flashcards_prompt(content, captions), "Karteikarten", parse_flashcards)
+
+    out_path = Path(args.out)
+    deck_name = args.deck or pdf_paths[0].parent.name or pdf_paths[0].stem
+    total, with_image, extra_image_cards = build_flashcards_deck(cards, image_pages, out_path, deck_name)
+
+    print(f"{total} Karteikarte(n) ({with_image} mit Bild) + {extra_image_cards} zusätzliche Bild-Karte(n) gespeichert: {out_path}")
 
 
 def main():
@@ -252,6 +323,7 @@ def main():
     p_cards = sub.add_parser("flashcards", help="Anki-Karteikarten erzeugen")
     p_cards.add_argument("pdfs", nargs="+", help="Ein oder mehrere Kapitel-PDFs")
     p_cards.add_argument("--out", default="karteikarten.apkg", help="Ausgabedatei (.apkg)")
+    p_cards.add_argument("--deck", default=None, help="Anki-Deck-Name (z. B. 'DLBMIUID01-01::Kapitel 8'); Standard: Ordnername")
     p_cards.set_defaults(func=cmd_flashcards)
 
     args = parser.parse_args()

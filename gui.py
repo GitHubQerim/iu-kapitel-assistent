@@ -6,15 +6,24 @@ from pathlib import Path
 import webview
 
 from kapitel_assistent import (
-    FLASHCARDS_PROMPT,
     SUMMARY_PROMPT,
     build_content,
+    build_flashcards_deck,
+    build_flashcards_prompt,
+    collect_all_captions,
     copy_to_clipboard,
     is_unchanged_prompt,
     parse_flashcards,
     read_clipboard,
     save_chapter_images,
 )
+
+
+def default_deck_name(first_pdf_path: Path) -> str:
+    module_code = first_pdf_path.parent.name or "Kapitel-Assistent"
+    label = first_pdf_path.stem.replace("_", " ")
+    label = label[:1].upper() + label[1:] if label else label
+    return f"{module_code}::{label}"
 
 
 class Api:
@@ -37,6 +46,7 @@ class Api:
             "files": [Path(p).name for p in self.pdf_paths],
             "default_output_base": first.stem,
             "default_output_dir": str(first.parent),
+            "default_deck_name": default_deck_name(first),
         }
 
     def pick_output(self, ext):
@@ -53,13 +63,16 @@ class Api:
         content, image_pages = build_content(pdf_paths)
         self.pending = (pdf_paths, content, image_pages)
 
-        template = FLASHCARDS_PROMPT if mode == "flashcards" else SUMMARY_PROMPT
-        prompt = template.format(content=content)
+        if mode == "flashcards":
+            captions = collect_all_captions(image_pages)
+            prompt = build_flashcards_prompt(content, captions)
+        else:
+            prompt = SUMMARY_PROMPT.format(content=content)
         self.last_prompt = prompt
         copy_to_clipboard(prompt)
         return {"ok": True}
 
-    def read_response(self, mode, out_path_str):
+    def read_response(self, mode, out_path_str, deck_name=None):
         if not self.pending:
             return {"ok": False, "error": "Bitte zuerst auf 'Prompt kopieren' klicken."}
         if not out_path_str:
@@ -85,7 +98,8 @@ class Api:
 
         try:
             if mode == "flashcards":
-                message = self._build_flashcards(response, pdf_paths, image_pages, out_path)
+                name = deck_name or default_deck_name(pdf_paths[0])
+                message = self._build_flashcards(response, image_pages, out_path, name)
             else:
                 message = self._build_summary(response, image_pages, out_path)
         except ValueError as exc:
@@ -117,48 +131,10 @@ class Api:
             return f"Zusammenfassung gespeichert. {len(saved_images)} Bild(er) mit gespeichert."
         return "Zusammenfassung gespeichert."
 
-    def _build_flashcards(self, response, pdf_paths, image_pages, out_path: Path) -> str:
-        import genanki
-
+    def _build_flashcards(self, response, image_pages, out_path: Path, deck_name: str) -> str:
         cards = parse_flashcards(response)
-
-        deck_name = pdf_paths[0].parent.name or pdf_paths[0].stem
-        deck_id = abs(hash(deck_name)) % (10**10)
-        model_id = abs(hash(deck_name + "_model")) % (10**10)
-
-        model = genanki.Model(
-            model_id,
-            "Kapitel-Assistent Basis",
-            fields=[{"name": "Front"}, {"name": "Back"}],
-            templates=[
-                {
-                    "name": "Karte",
-                    "qfmt": "{{Front}}",
-                    "afmt": '{{FrontSide}}<hr id="answer">{{Back}}',
-                }
-            ],
-        )
-        deck = genanki.Deck(deck_id, deck_name)
-        for card in cards:
-            deck.add_note(genanki.Note(model=model, fields=[card["front"], card["back"]]))
-
-        saved_images = save_chapter_images(image_pages, out_path.parent / f"{out_path.stem}_bilder")
-        media_files = []
-        for pdf_path, page_num, img_path, caption in saved_images:
-            front = caption or f"Bild – {pdf_path.stem}, Seite {page_num}"
-            deck.add_note(
-                genanki.Note(
-                    model=model,
-                    fields=[front, f'<img src="{img_path.name}">'],
-                )
-            )
-            media_files.append(str(img_path))
-
-        package = genanki.Package(deck)
-        package.media_files = media_files
-        package.write_to_file(str(out_path))
-
-        return f"{len(cards)} Karteikarte(n) + {len(saved_images)} Bild-Karte(n)."
+        total, with_image, extra_image_cards = build_flashcards_deck(cards, image_pages, out_path, deck_name)
+        return f"{total} Karteikarte(n) ({with_image} mit Bild) + {extra_image_cards} zusätzliche Bild-Karte(n)."
 
 
 if __name__ == "__main__":
