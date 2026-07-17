@@ -1,0 +1,452 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Kapitel-Assistent</title>
+<style>
+  :root {
+    --bg: #F6F1E7;
+    --bg-card: #FFFFFF;
+    --ink: #1F2430;
+    --ink-soft: #6b6455;
+    --accent-blue: #2B4C7E;
+    --accent-blue-ink: #FFFFFF;
+    --accent-yellow: #F4C542;
+    --accent-yellow-ink: #2A2210;
+    --line: #D8CFBC;
+    --error: #A8402F;
+    --error-bg: #F6E4DF;
+    --success: #3E6B4F;
+    --focus: #2B4C7E;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #171A21;
+      --bg-card: #1F232C;
+      --ink: #E8E4D9;
+      --ink-soft: #9c9788;
+      --accent-blue: #7FB0E8;
+      --accent-blue-ink: #12202F;
+      --accent-yellow: #E8C24A;
+      --accent-yellow-ink: #2A2210;
+      --line: #333944;
+      --error: #E08585;
+      --error-bg: #3A2323;
+      --success: #82C99A;
+      --focus: #7FB0E8;
+    }
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: -apple-system, "SF Pro Text", system-ui, sans-serif;
+    font-size: 13px;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+
+  .app { padding: 18px 22px 16px; }
+
+  header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 14px;
+  }
+
+  h1 {
+    font-family: "American Typewriter", Georgia, serif;
+    font-size: 20px;
+    font-weight: 600;
+    margin: 0 0 2px;
+    letter-spacing: 0.2px;
+  }
+
+  .subtitle {
+    margin: 0;
+    color: var(--ink-soft);
+    font-size: 12px;
+  }
+
+  .info-btn {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    border: 1px solid var(--line);
+    background: var(--bg-card);
+    color: var(--ink-soft);
+    font-family: Georgia, serif;
+    font-style: italic;
+    font-size: 14px;
+    line-height: 1;
+    cursor: pointer;
+    flex: none;
+  }
+  .info-btn:hover { color: var(--accent-blue); border-color: var(--accent-blue); }
+  .info-btn:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+  .row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+
+  .file-name {
+    color: var(--ink-soft);
+    font-size: 12px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex: 1;
+  }
+  .file-name.chosen { color: var(--ink); }
+
+  label.field-label {
+    font-size: 12px;
+    color: var(--ink-soft);
+    flex: none;
+    width: 78px;
+  }
+
+  input[type="text"] {
+    flex: 1;
+    padding: 6px 9px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: var(--bg-card);
+    color: var(--ink);
+    font-size: 12px;
+    min-width: 0;
+  }
+  input[type="text"]:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+
+  .btn {
+    border: 1px solid var(--line);
+    background: var(--bg-card);
+    color: var(--ink);
+    padding: 7px 14px;
+    border-radius: 7px;
+    font-size: 12.5px;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .btn:hover { border-color: var(--accent-blue); }
+  .btn:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+  .btn:disabled { opacity: 0.45; cursor: default; }
+  .btn:disabled:hover { border-color: var(--line); }
+
+  .toggle {
+    display: inline-flex;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 2px;
+    background: var(--bg-card);
+    gap: 2px;
+  }
+  .toggle button {
+    border: none;
+    background: transparent;
+    color: var(--ink-soft);
+    padding: 6px 14px;
+    border-radius: 6px;
+    font-size: 12.5px;
+    cursor: pointer;
+  }
+  .toggle button[aria-pressed="true"] {
+    background: var(--accent-blue);
+    color: var(--accent-blue-ink);
+    font-weight: 600;
+  }
+  .toggle button:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+  .divider {
+    height: 6px;
+    margin: 16px 0;
+    background-image: radial-gradient(circle, var(--line) 1.6px, transparent 1.6px);
+    background-size: 11px 6px;
+    background-position: center;
+    background-repeat: repeat-x;
+  }
+
+  .actions {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+
+  .badge-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: rgba(0,0,0,0.15);
+    font-size: 10px;
+    margin-right: 6px;
+  }
+
+  .btn-primary {
+    background: var(--accent-yellow);
+    border-color: var(--accent-yellow);
+    color: var(--accent-yellow-ink);
+    font-weight: 600;
+    padding: 9px 16px;
+  }
+  .btn-primary:hover { filter: brightness(0.96); border-color: var(--accent-yellow); }
+  .btn-primary .badge-num { background: rgba(0,0,0,0.12); }
+
+  .btn-secondary {
+    background: var(--accent-blue);
+    border-color: var(--accent-blue);
+    color: var(--accent-blue-ink);
+    font-weight: 600;
+    padding: 9px 16px;
+  }
+  .btn-secondary:hover { filter: brightness(1.08); }
+  .btn-secondary .badge-num { background: rgba(255,255,255,0.25); }
+
+  .btn-ghost {
+    background: transparent;
+    padding: 9px 14px;
+  }
+  .btn-ghost.ready {
+    border-color: var(--success);
+    color: var(--success);
+    animation: pulse 1.8s ease-in-out 2;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .btn-ghost.ready { animation: none; }
+  }
+  @keyframes pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(62,107,79,0.0); }
+    50% { box-shadow: 0 0 0 4px rgba(62,107,79,0.18); }
+  }
+
+  .log {
+    background: var(--bg-card);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 12px 14px;
+    height: 210px;
+    overflow-y: auto;
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 11.5px;
+    line-height: 1.6;
+    white-space: pre-wrap;
+  }
+  .log .line { margin: 0 0 2px; }
+  .log .line.error { color: var(--error); }
+  .log .line.success { color: var(--success); }
+  .log .placeholder { color: var(--ink-soft); font-style: italic; }
+
+  dialog.info-modal {
+    border: none;
+    border-radius: 12px;
+    padding: 0;
+    background: var(--bg-card);
+    color: var(--ink);
+    width: 340px;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.25);
+  }
+  dialog.info-modal::backdrop { background: rgba(0,0,0,0.35); }
+  .modal-inner { padding: 18px 20px 20px; }
+  .modal-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+  }
+  .modal-head h2 {
+    font-family: "American Typewriter", Georgia, serif;
+    font-size: 15px;
+    margin: 0;
+  }
+  .modal-close {
+    border: none;
+    background: transparent;
+    color: var(--ink-soft);
+    font-size: 15px;
+    cursor: pointer;
+    padding: 2px 6px;
+  }
+  .modal-close:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+  ol.steps {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    counter-reset: step;
+  }
+  ol.steps li {
+    counter-increment: step;
+    display: flex;
+    gap: 10px;
+    margin-bottom: 10px;
+    font-size: 12.5px;
+    line-height: 1.4;
+  }
+  ol.steps li::before {
+    content: counter(step);
+    flex: none;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--accent-blue);
+    color: var(--accent-blue-ink);
+    font-size: 10.5px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 1px;
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div>
+      <h1>Kapitel-Assistent</h1>
+      <p class="subtitle">Zusammenfassungen &amp; Karteikarten aus deinen IU-Kapitel-PDFs</p>
+    </div>
+    <button class="info-btn" id="infoBtn" title="Ablauf anzeigen" aria-haspopup="dialog">i</button>
+  </header>
+
+  <div class="row">
+    <button class="btn" id="pickFilesBtn">Kapitel-PDF(s) wählen…</button>
+    <span class="file-name" id="fileName">Keine Datei gewählt</span>
+  </div>
+
+  <div class="row">
+    <div class="toggle" role="group" aria-label="Modus">
+      <button type="button" id="modeSummary" aria-pressed="true">Zusammenfassung</button>
+      <button type="button" id="modeFlashcards" aria-pressed="false">Karteikarten</button>
+    </div>
+  </div>
+
+  <div class="row">
+    <label class="field-label" for="outputPath">Ausgabedatei</label>
+    <input type="text" id="outputPath" placeholder="wird nach der Dateiauswahl vorbelegt">
+    <button class="btn" id="pickOutputBtn">Wählen…</button>
+  </div>
+
+  <div class="divider" aria-hidden="true"></div>
+
+  <div class="actions">
+    <button class="btn btn-primary" id="copyPromptBtn"><span class="badge-num">1</span>Prompt kopieren</button>
+    <button class="btn btn-secondary" id="readResponseBtn"><span class="badge-num">2</span>Antwort einlesen</button>
+    <button class="btn btn-ghost" id="revealBtn" disabled>Im Finder zeigen</button>
+  </div>
+
+  <div class="log" id="log">
+    <p class="placeholder">Noch nichts passiert. Wähle zuerst ein oder mehrere Kapitel-PDFs.</p>
+  </div>
+</div>
+
+<dialog class="info-modal" id="infoModal">
+  <div class="modal-inner">
+    <div class="modal-head">
+      <h2>Ablauf</h2>
+      <button class="modal-close" id="modalClose" aria-label="Schließen">&#10005;</button>
+    </div>
+    <ol class="steps">
+      <li>Prompt kopieren</li>
+      <li>In ChatGPT, Claude, Gemini o.&nbsp;ä. einfügen &amp; abschicken</li>
+      <li>Dort die Antwort kopieren</li>
+      <li>Hierher zurück und auf &bdquo;Antwort einlesen&ldquo; klicken</li>
+    </ol>
+  </div>
+</dialog>
+
+<script>
+  let pdfPaths = [];
+  let hasPending = false;
+  let mode = "summary";
+
+  const el = (id) => document.getElementById(id);
+  const logEl = el("log");
+  const outputInput = el("outputPath");
+  const revealBtn = el("revealBtn");
+  const fileNameEl = el("fileName");
+
+  function logLine(text, kind) {
+    if (logEl.querySelector(".placeholder")) logEl.innerHTML = "";
+    const p = document.createElement("p");
+    p.className = "line" + (kind ? " " + kind : "");
+    p.textContent = text;
+    logEl.appendChild(p);
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+
+  function setMode(newMode) {
+    mode = newMode;
+    el("modeSummary").setAttribute("aria-pressed", String(newMode === "summary"));
+    el("modeFlashcards").setAttribute("aria-pressed", String(newMode === "flashcards"));
+
+    const newExt = newMode === "flashcards" ? "apkg" : "md";
+    const current = outputInput.value.trim();
+    if (current && /\.(md|apkg)$/i.test(current)) {
+      outputInput.value = current.replace(/\.(md|apkg)$/i, "." + newExt);
+    }
+  }
+
+  el("modeSummary").addEventListener("click", () => setMode("summary"));
+  el("modeFlashcards").addEventListener("click", () => setMode("flashcards"));
+
+  el("infoBtn").addEventListener("click", () => el("infoModal").showModal());
+  el("modalClose").addEventListener("click", () => el("infoModal").close());
+  el("infoModal").addEventListener("click", (e) => {
+    if (e.target === el("infoModal")) el("infoModal").close();
+  });
+
+  el("pickFilesBtn").addEventListener("click", async () => {
+    const result = await window.pywebview.api.pick_files();
+    if (result.files && result.files.length) {
+      fileNameEl.textContent = result.files.join(", ");
+      fileNameEl.classList.add("chosen");
+      if (!outputInput.value.trim()) {
+        const ext = mode === "flashcards" ? "apkg" : "md";
+        outputInput.value = result.default_output_dir + "/" + result.default_output_base + "." + ext;
+      }
+    }
+  });
+
+  el("pickOutputBtn").addEventListener("click", async () => {
+    const ext = mode === "flashcards" ? "apkg" : "md";
+    const path = await window.pywebview.api.pick_output(ext);
+    if (path) outputInput.value = path;
+  });
+
+  el("copyPromptBtn").addEventListener("click", async () => {
+    const result = await window.pywebview.api.copy_prompt(mode);
+    if (!result.ok) {
+      logLine(result.error, "error");
+      return;
+    }
+    hasPending = true;
+    logLine("Prompt in die Zwischenablage kopiert. Füge ihn in ChatGPT/Claude/Gemini ein, schick ihn ab, und kopiere danach NUR die Antwort zurück.");
+  });
+
+  el("readResponseBtn").addEventListener("click", async () => {
+    const result = await window.pywebview.api.read_response(mode, outputInput.value.trim());
+    if (!result.ok) {
+      logLine(result.error, "error");
+      return;
+    }
+    logLine(result.message, "success");
+    logLine("Fertig: " + result.out_path, "success");
+    revealBtn.disabled = false;
+    revealBtn.classList.add("ready");
+  });
+
+  revealBtn.addEventListener("click", () => window.pywebview.api.reveal_output());
+</script>
+</body>
+</html>

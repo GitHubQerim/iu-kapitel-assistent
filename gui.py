@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""Kleine Desktop-Oberfläche für kapitel_assistent.py."""
-import tkinter as tk
+"""Desktop-Oberfläche für kapitel_assistent.py (pywebview + HTML/CSS in ui.html)."""
+import subprocess
 from pathlib import Path
-from tkinter import filedialog, messagebox, scrolledtext, ttk
+
+import webview
 
 from kapitel_assistent import (
     FLASHCARDS_PROMPT,
@@ -16,147 +17,107 @@ from kapitel_assistent import (
 )
 
 
-class App(tk.Tk):
+class Api:
     def __init__(self):
-        super().__init__()
-        self.title("Kapitel-Assistent")
-        self.geometry("680x520")
+        self.window = None
         self.pdf_paths = []
-        self.mode = tk.StringVar(value="summary")
-        self.output_path = tk.StringVar()
-        self._pending = None  # (pdf_paths, content, image_pages) während auf Antwort gewartet wird
-        self._last_prompt = None
-        self._build()
-
-    def _build(self):
-        pad = {"padx": 10, "pady": 6}
-
-        frame_files = tk.Frame(self)
-        frame_files.pack(fill="x", **pad)
-        tk.Button(frame_files, text="Kapitel-PDF(s) wählen...", command=self.pick_files).pack(side="left")
-        self.files_label = tk.Label(frame_files, text="Keine Datei gewählt", anchor="w")
-        self.files_label.pack(side="left", fill="x", expand=True, padx=8)
-
-        frame_mode = tk.Frame(self)
-        frame_mode.pack(fill="x", **pad)
-        tk.Label(frame_mode, text="Modus:").pack(side="left")
-        tk.Radiobutton(frame_mode, text="Zusammenfassung", variable=self.mode, value="summary",
-                        command=self._update_default_output).pack(side="left", padx=6)
-        tk.Radiobutton(frame_mode, text="Karteikarten", variable=self.mode, value="flashcards",
-                        command=self._update_default_output).pack(side="left", padx=6)
-
-        frame_out = tk.Frame(self)
-        frame_out.pack(fill="x", **pad)
-        tk.Label(frame_out, text="Ausgabedatei:").pack(side="left")
-        tk.Entry(frame_out, textvariable=self.output_path).pack(side="left", fill="x", expand=True, padx=6)
-        tk.Button(frame_out, text="Wählen...", command=self.pick_output).pack(side="left")
-
-        instructions = (
-            "Ablauf:  1) Prompt kopieren  →  2) in ChatGPT/Claude/Gemini (o.ä.) einfügen & abschicken\n"
-            "→  3) dort die Antwort kopieren  →  4) hierher zurück und auf 'Antwort einlesen' klicken."
-        )
-        tk.Label(self, text=instructions, justify="left", fg="#888").pack(fill="x", padx=10, pady=(0, 4))
-
-        style = ttk.Style(self)
-        style.configure("Assist.TButton", font=("SF Pro Text", 12, "bold"), padding=(16, 6))
-
-        frame_buttons = tk.Frame(self)
-        frame_buttons.pack(pady=10)
-        ttk.Button(frame_buttons, text="1. Prompt kopieren", style="Assist.TButton",
-                   command=self.copy_prompt).pack(side="left", padx=6)
-        ttk.Button(frame_buttons, text="2. Antwort einlesen", style="Assist.TButton",
-                   command=self.read_response).pack(side="left", padx=6)
-
-        self.log = scrolledtext.ScrolledText(self, state="disabled", font=("Menlo", 11))
-        self.log.pack(fill="both", expand=True, padx=10, pady=(0, 10))
-
-    def _update_default_output(self):
-        if not self.pdf_paths:
-            return
-        stem = Path(self.pdf_paths[0]).stem
-        ext = "apkg" if self.mode.get() == "flashcards" else "md"
-        self.output_path.set(str(Path(self.pdf_paths[0]).parent / f"{stem}.{ext}"))
+        self.pending = None  # (pdf_paths, content, image_pages)
+        self.last_prompt = None
+        self.last_output_path = None
 
     def pick_files(self):
-        paths = filedialog.askopenfilenames(filetypes=[("PDF-Dateien", "*.pdf")])
-        if paths:
-            self.pdf_paths = list(paths)
-            names = ", ".join(Path(p).name for p in self.pdf_paths)
-            self.files_label.config(text=names)
-            self._update_default_output()
+        paths = self.window.create_file_dialog(
+            webview.OPEN_DIALOG, allow_multiple=True, file_types=("PDF Dateien (*.pdf)",)
+        )
+        if not paths:
+            return {"files": []}
+        self.pdf_paths = list(paths)
+        first = Path(self.pdf_paths[0])
+        return {
+            "files": [Path(p).name for p in self.pdf_paths],
+            "default_output_base": first.stem,
+            "default_output_dir": str(first.parent),
+        }
 
-    def pick_output(self):
-        ext = "apkg" if self.mode.get() == "flashcards" else "md"
-        path = filedialog.asksaveasfilename(defaultextension=f".{ext}", filetypes=[(ext.upper(), f"*.{ext}")])
-        if path:
-            self.output_path.set(path)
+    def pick_output(self, ext):
+        path = self.window.create_file_dialog(
+            webview.SAVE_DIALOG, save_filename=f"ausgabe.{ext}"
+        )
+        return path or ""
 
-    def write_log(self, text):
-        self.log.configure(state="normal")
-        self.log.insert("end", text + "\n")
-        self.log.see("end")
-        self.log.configure(state="disabled")
-
-    def copy_prompt(self):
+    def copy_prompt(self, mode):
         if not self.pdf_paths:
-            messagebox.showwarning("Fehlt", "Bitte zuerst ein oder mehrere Kapitel-PDFs wählen.")
-            return
+            return {"ok": False, "error": "Bitte zuerst ein oder mehrere Kapitel-PDFs wählen."}
+
         pdf_paths = [Path(p) for p in self.pdf_paths]
         content, image_pages = build_content(pdf_paths)
-        self._pending = (pdf_paths, content, image_pages)
+        self.pending = (pdf_paths, content, image_pages)
 
-        template = FLASHCARDS_PROMPT if self.mode.get() == "flashcards" else SUMMARY_PROMPT
+        template = FLASHCARDS_PROMPT if mode == "flashcards" else SUMMARY_PROMPT
         prompt = template.format(content=content)
-        self._last_prompt = prompt
+        self.last_prompt = prompt
         copy_to_clipboard(prompt)
-        self.write_log("Prompt in die Zwischenablage kopiert. Füge ihn in ChatGPT/Claude/Gemini (o.ä.) ein, "
-                        "schick ihn ab, und kopiere danach NUR die Antwort zurück.")
+        return {"ok": True}
 
-    def read_response(self):
-        if not self._pending:
-            messagebox.showwarning("Fehlt", "Bitte zuerst auf '1. Prompt kopieren' klicken.")
-            return
-        if not self.output_path.get().strip():
-            messagebox.showwarning("Fehlt", "Bitte eine Ausgabedatei wählen.")
-            return
+    def read_response(self, mode, out_path_str):
+        if not self.pending:
+            return {"ok": False, "error": "Bitte zuerst auf 'Prompt kopieren' klicken."}
+        if not out_path_str:
+            return {"ok": False, "error": "Bitte eine Ausgabedatei wählen."}
 
-        pdf_paths, content, image_pages = self._pending
+        pdf_paths, content, image_pages = self.pending
         response = read_clipboard().strip()
         if not response:
-            self.write_log("Zwischenablage ist leer. Antwort im Chat-Tool kopieren und erneut klicken.")
-            return
-        if is_unchanged_prompt(response, self._last_prompt):
-            self.write_log("In der Zwischenablage steht noch der Prompt selbst, nicht die Antwort des Chat-Tools.")
-            self.write_log("Erst den Prompt dort einfügen & abschicken, die Antwort abwarten, DIE ANTWORT kopieren "
-                            "– dann hier erneut klicken.")
-            return
+            return {"ok": False, "error": "Zwischenablage ist leer. Antwort im Chat-Tool kopieren und erneut klicken."}
+        if is_unchanged_prompt(response, self.last_prompt):
+            return {
+                "ok": False,
+                "error": (
+                    "In der Zwischenablage steht noch der Prompt selbst, nicht die Antwort des Chat-Tools. "
+                    "Erst dort einfügen & abschicken, die Antwort abwarten, DIE ANTWORT kopieren – dann erneut klicken."
+                ),
+            }
 
-        out_path = Path(self.output_path.get())
+        out_path = Path(out_path_str)
+        expected_ext = ".apkg" if mode == "flashcards" else ".md"
+        if out_path.suffix.lower() != expected_ext:
+            out_path = out_path.with_suffix(expected_ext)
+
         try:
-            if self.mode.get() == "flashcards":
-                self._build_flashcards(response, pdf_paths, image_pages, out_path)
+            if mode == "flashcards":
+                message = self._build_flashcards(response, pdf_paths, image_pages, out_path)
             else:
-                self._build_summary(response, image_pages, out_path)
+                message = self._build_summary(response, image_pages, out_path)
         except ValueError as exc:
-            self.write_log(f"Antwort konnte nicht verarbeitet werden: {exc}")
-            self.write_log("Korrigiere die Antwort im Chat-Tool, kopiere sie neu und klicke wieder auf '2. Antwort einlesen'.")
-            return
+            return {
+                "ok": False,
+                "error": f"Antwort konnte nicht verarbeitet werden: {exc} "
+                         "Korrigiere sie im Chat-Tool, kopiere sie neu und klicke wieder auf 'Antwort einlesen'.",
+            }
 
-        self.write_log(f"Fertig: {out_path}")
-        self._pending = None
+        self.pending = None
+        self.last_output_path = str(out_path)
+        return {"ok": True, "message": message, "out_path": str(out_path)}
 
-    def _build_summary(self, response, image_pages, out_path: Path):
+    def reveal_output(self):
+        if self.last_output_path and Path(self.last_output_path).exists():
+            subprocess.run(["open", "-R", self.last_output_path], check=False)
+        return {"ok": True}
+
+    def _build_summary(self, response, image_pages, out_path: Path) -> str:
         out_path.write_text(response, encoding="utf-8")
         saved_images = save_chapter_images(image_pages, out_path.parent / f"{out_path.stem}_bilder")
         if saved_images:
             with out_path.open("a", encoding="utf-8") as f:
                 f.write("\n\n## Bilder aus diesem Kapitel\n\n")
-                for pdf_path, page_num, img_path in saved_images:
+                for pdf_path, page_num, img_path, caption in saved_images:
                     rel = img_path.relative_to(out_path.parent)
-                    f.write(f"![{pdf_path.stem} Seite {page_num}]({rel})\n\n")
-            self.write_log(f"{len(saved_images)} Bild(er) mit gespeichert.")
+                    label = caption or f"{pdf_path.stem} Seite {page_num}"
+                    f.write(f"![{label}]({rel})\n\n")
+            return f"Zusammenfassung gespeichert. {len(saved_images)} Bild(er) mit gespeichert."
+        return "Zusammenfassung gespeichert."
 
-    def _build_flashcards(self, response, pdf_paths, image_pages, out_path: Path):
+    def _build_flashcards(self, response, pdf_paths, image_pages, out_path: Path) -> str:
         import genanki
 
         cards = parse_flashcards(response)
@@ -183,11 +144,12 @@ class App(tk.Tk):
 
         saved_images = save_chapter_images(image_pages, out_path.parent / f"{out_path.stem}_bilder")
         media_files = []
-        for pdf_path, page_num, img_path in saved_images:
+        for pdf_path, page_num, img_path, caption in saved_images:
+            front = caption or f"Bild – {pdf_path.stem}, Seite {page_num}"
             deck.add_note(
                 genanki.Note(
                     model=model,
-                    fields=[f"Bild – {pdf_path.stem}, Seite {page_num}", f'<img src="{img_path.name}">'],
+                    fields=[front, f'<img src="{img_path.name}">'],
                 )
             )
             media_files.append(str(img_path))
@@ -196,8 +158,14 @@ class App(tk.Tk):
         package.media_files = media_files
         package.write_to_file(str(out_path))
 
-        self.write_log(f"{len(cards)} Karteikarte(n) + {len(saved_images)} Bild-Karte(n).")
+        return f"{len(cards)} Karteikarte(n) + {len(saved_images)} Bild-Karte(n)."
 
 
 if __name__ == "__main__":
-    App().mainloop()
+    api = Api()
+    html_path = Path(__file__).parent / "ui.html"
+    window = webview.create_window(
+        "Kapitel-Assistent", url=str(html_path), js_api=api, width=760, height=640, min_size=(620, 520)
+    )
+    api.window = window
+    webview.start()

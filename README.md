@@ -34,7 +34,7 @@ Falls die Antwort aus dem Chat-Tool kein valides JSON ist (z. B. weil ein Codebl
 python3 gui.py
 ```
 
-Datei-Dialog statt Pfade abzutippen: ein oder mehrere Kapitel-PDFs wählen, Modus (Zusammenfassung/Karteikarten) auswählen, Ausgabedatei wählen, dann nacheinander auf "1. Prompt kopieren" und nach dem Einfügen der Chat-Antwort auf "2. Antwort einlesen" klicken. Bei einer fehlerhaften Antwort einfach im Chat-Tool korrigieren und erneut auf "2. Antwort einlesen" klicken.
+Natives Fenster (via [pywebview](https://pywebview.flowrl.com/), Oberfläche in `ui.html`) statt Pfade abzutippen: ein oder mehrere Kapitel-PDFs per Datei-Dialog wählen, Modus (Zusammenfassung/Karteikarten) umschalten, Ausgabedatei wählen, dann "Prompt kopieren" → in ein Chat-Tool einfügen → "Antwort einlesen" klicken. Der (i)-Button oben rechts zeigt den Ablauf als Erinnerung. Bei einer fehlerhaften Antwort einfach im Chat-Tool korrigieren und erneut auf "Antwort einlesen" klicken; nach Erfolg öffnet "Im Finder zeigen" die fertige Datei direkt im Finder.
 
 ## Lizenz
 
