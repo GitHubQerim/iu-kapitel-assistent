@@ -50,13 +50,13 @@
     overflow-x: hidden;
   }
 
-  .app { padding: 18px 22px 16px; }
+  .app { padding: 18px 22px 20px; }
 
   header {
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
-    margin-bottom: 14px;
+    margin-bottom: 16px;
   }
 
   h1 {
@@ -72,6 +72,27 @@
     color: var(--ink-soft);
     font-size: 12px;
   }
+
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: none;
+  }
+
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 11px;
+    border-radius: 999px;
+    border: 1px solid var(--line);
+    background: var(--bg-card);
+    color: var(--ink-soft);
+    font-size: 11px;
+    white-space: nowrap;
+  }
+  .pill .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--success); flex: none; }
 
   .info-btn {
     width: 26px;
@@ -90,12 +111,21 @@
   .info-btn:hover { color: var(--accent-blue); border-color: var(--accent-blue); }
   .info-btn:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 
+  .card {
+    background: var(--bg-card);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 14px 16px;
+    margin-bottom: 12px;
+  }
+
   .row {
     display: flex;
     align-items: center;
     gap: 10px;
     margin-bottom: 12px;
   }
+  .row:last-child { margin-bottom: 0; }
 
   .file-name {
     color: var(--ink-soft);
@@ -119,7 +149,7 @@
     padding: 6px 9px;
     border: 1px solid var(--line);
     border-radius: 6px;
-    background: var(--bg-card);
+    background: var(--bg);
     color: var(--ink);
     font-size: 12px;
     min-width: 0;
@@ -146,7 +176,7 @@
     border: 1px solid var(--line);
     border-radius: 8px;
     padding: 2px;
-    background: var(--bg-card);
+    background: var(--bg);
     gap: 2px;
   }
   .toggle button {
@@ -167,30 +197,11 @@
 
   .divider {
     height: 6px;
-    margin: 16px 0;
+    margin: 4px 0 16px;
     background-image: radial-gradient(circle, var(--line) 1.6px, transparent 1.6px);
     background-size: 11px 6px;
     background-position: center;
     background-repeat: repeat-x;
-  }
-
-  .actions {
-    display: flex;
-    justify-content: center;
-    gap: 10px;
-    margin-bottom: 14px;
-  }
-
-  .badge-num {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 16px;
-    height: 16px;
-    border-radius: 50%;
-    background: rgba(0,0,0,0.15);
-    font-size: 10px;
-    margin-right: 6px;
   }
 
   .btn-primary {
@@ -198,20 +209,16 @@
     border-color: var(--accent-yellow);
     color: var(--accent-yellow-ink);
     font-weight: 600;
-    padding: 9px 16px;
   }
   .btn-primary:hover { filter: brightness(0.96); border-color: var(--accent-yellow); }
-  .btn-primary .badge-num { background: rgba(0,0,0,0.12); }
 
   .btn-secondary {
     background: var(--accent-blue);
     border-color: var(--accent-blue);
     color: var(--accent-blue-ink);
     font-weight: 600;
-    padding: 9px 16px;
   }
   .btn-secondary:hover { filter: brightness(1.08); }
-  .btn-secondary .badge-num { background: rgba(255,255,255,0.25); }
 
   .btn-ghost {
     background: transparent;
@@ -230,22 +237,92 @@
     50% { box-shadow: 0 0 0 4px rgba(62,107,79,0.18); }
   }
 
-  .log {
+  .steps-tracker {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+
+  .step-item {
+    display: flex;
+    gap: 12px;
+    border: 1px solid var(--line);
+    background: var(--bg-card);
+    border-radius: 12px;
+    padding: 12px 14px;
+    transition: border-color 0.15s ease;
+  }
+  .step-item .step-icon {
+    flex: none;
+    width: 24px;
+    height: 24px;
+    margin-top: 1px;
+    border-radius: 50%;
+    border: 1.5px solid var(--line);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--ink-soft);
+  }
+  .step-item.active .step-icon { border-color: var(--accent-blue); color: var(--accent-blue); }
+  .step-item.done { border-color: var(--success); }
+  .step-item.done .step-icon { background: var(--success); border-color: var(--success); color: var(--bg-card); }
+  .step-item.error { border-color: var(--error); }
+  .step-item.error .step-icon { background: var(--error); border-color: var(--error); color: var(--bg-card); }
+
+  .step-body { flex: 1; min-width: 0; }
+  .step-title-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 4px;
+  }
+  .step-title { font-weight: 600; font-size: 12.5px; }
+  .step-title-row .btn { padding: 5px 12px; font-size: 11.5px; flex: none; }
+  .step-detail { margin: 0; font-size: 11.5px; color: var(--ink-soft); line-height: 1.4; }
+  .step-item.error .step-detail { color: var(--error); }
+  .step-item.done .step-detail { color: var(--success); }
+
+  .line { margin: 0 0 2px; }
+  .line.success { color: var(--success); }
+  .placeholder { color: var(--ink-soft); font-style: italic; }
+
+  details.prev-chapters { margin-top: 2px; }
+  details.prev-chapters summary {
+    cursor: pointer;
+    font-size: 12px;
+    color: var(--ink-soft);
+    padding: 6px 2px;
+    list-style: none;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  details.prev-chapters summary::-webkit-details-marker { display: none; }
+  details.prev-chapters summary::before {
+    content: "▸";
+    font-size: 10px;
+    transition: transform 0.15s ease;
+  }
+  details.prev-chapters[open] summary::before { transform: rotate(90deg); }
+  details.prev-chapters summary:hover { color: var(--ink); }
+
+  .prev-list {
     background: var(--bg-card);
     border: 1px solid var(--line);
     border-radius: 8px;
-    padding: 12px 14px;
-    height: 210px;
+    padding: 10px 12px;
+    max-height: 130px;
     overflow-y: auto;
     font-family: ui-monospace, "SF Mono", Menlo, monospace;
     font-size: 11.5px;
     line-height: 1.6;
-    white-space: pre-wrap;
+    margin-top: 4px;
   }
-  .log .line { margin: 0 0 2px; }
-  .log .line.error { color: var(--error); }
-  .log .line.success { color: var(--success); }
-  .log .placeholder { color: var(--ink-soft); font-style: italic; }
 
   dialog.info-modal {
     border: none;
@@ -278,6 +355,12 @@
     padding: 2px 6px;
   }
   .modal-close:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+  .done-check { color: var(--success); }
+  .done-label { font-weight: 600; font-size: 13px; margin: 0 0 4px; }
+  .done-detail { font-size: 11.5px; color: var(--ink-soft); margin: 0 0 18px; line-height: 1.4; }
+  .modal-actions { display: flex; justify-content: flex-end; gap: 8px; }
+
   ol.steps {
     margin: 0;
     padding: 0;
@@ -316,43 +399,73 @@
       <h1>Kapitel-Assistent</h1>
       <p class="subtitle">Zusammenfassungen &amp; Karteikarten aus deinen IU-Kapitel-PDFs</p>
     </div>
-    <button class="info-btn" id="infoBtn" title="Ablauf anzeigen" aria-haspopup="dialog">i</button>
+    <div class="header-right">
+      <span class="pill" id="progressPill"><span class="dot" aria-hidden="true"></span><span id="progressPillText">0 Kapitel erledigt</span></span>
+      <button class="info-btn" id="infoBtn" title="Ablauf anzeigen" aria-haspopup="dialog">i</button>
+    </div>
   </header>
 
-  <div class="row">
-    <button class="btn" id="pickFilesBtn">Kapitel-PDF(s) wählen…</button>
-    <span class="file-name" id="fileName">Keine Datei gewählt</span>
-  </div>
-
-  <div class="row">
-    <div class="toggle" role="group" aria-label="Modus">
-      <button type="button" id="modeSummary" aria-pressed="true">Zusammenfassung</button>
-      <button type="button" id="modeFlashcards" aria-pressed="false">Karteikarten</button>
+  <div class="card">
+    <div class="row">
+      <button class="btn" id="pickFilesBtn">Kapitel-PDF(s) wählen…</button>
+      <span class="file-name" id="fileName">Keine Datei gewählt</span>
+    </div>
+    <div class="row">
+      <div class="toggle" role="group" aria-label="Modus">
+        <button type="button" id="modeSummary" aria-pressed="true">Zusammenfassung</button>
+        <button type="button" id="modeFlashcards" aria-pressed="false">Karteikarten</button>
+      </div>
     </div>
   </div>
 
-  <div class="row">
-    <label class="field-label" for="outputPath">Ausgabedatei</label>
-    <input type="text" id="outputPath" placeholder="wird nach der Dateiauswahl vorbelegt">
-    <button class="btn" id="pickOutputBtn">Wählen…</button>
+  <div class="card">
+    <div class="row">
+      <label class="field-label" for="outputPath">Ausgabedatei</label>
+      <input type="text" id="outputPath" placeholder="wird nach der Dateiauswahl vorbelegt">
+      <button class="btn" id="pickOutputBtn">Wählen…</button>
+    </div>
+    <div class="row" id="deckNameRow" style="display: none;">
+      <label class="field-label" for="deckName">Deck-Name</label>
+      <input type="text" id="deckName" placeholder="z. B. DLBMIUID01-01::Kapitel 8">
+    </div>
   </div>
 
-  <div class="row" id="deckNameRow" style="display: none;">
-    <label class="field-label" for="deckName">Deck-Name</label>
-    <input type="text" id="deckName" placeholder="z. B. DLBMIUID01-01::Kapitel 8">
+  <div class="steps-tracker">
+    <div class="step-item" id="step1">
+      <div class="step-icon" id="step1Icon"></div>
+      <div class="step-body">
+        <div class="step-title-row">
+          <span class="step-title">Prompt kopieren</span>
+          <button class="btn btn-primary" id="copyPromptBtn">Kopieren</button>
+        </div>
+        <p class="step-detail" id="step1Detail"></p>
+      </div>
+    </div>
+    <div class="step-item" id="step2">
+      <div class="step-icon" id="step2Icon"></div>
+      <div class="step-body">
+        <div class="step-title-row">
+          <span class="step-title">Antwort einlesen</span>
+          <button class="btn btn-secondary" id="readResponseBtn">Einlesen</button>
+        </div>
+        <p class="step-detail" id="step2Detail"></p>
+      </div>
+    </div>
+  </div>
+
+  <div class="row" style="justify-content: flex-end;">
+    <button class="btn" id="newChapterBtn">&#8635; Neues Kapitel</button>
+    <button class="btn btn-ghost" id="revealBtn" disabled>Im Finder zeigen</button>
   </div>
 
   <div class="divider" aria-hidden="true"></div>
 
-  <div class="actions">
-    <button class="btn btn-primary" id="copyPromptBtn"><span class="badge-num">1</span>Prompt kopieren</button>
-    <button class="btn btn-secondary" id="readResponseBtn"><span class="badge-num">2</span>Antwort einlesen</button>
-    <button class="btn btn-ghost" id="revealBtn" disabled>Im Finder zeigen</button>
-  </div>
-
-  <div class="log" id="log">
-    <p class="placeholder">Noch nichts passiert. Wähle zuerst ein oder mehrere Kapitel-PDFs.</p>
-  </div>
+  <details class="prev-chapters" id="prevChaptersDetails">
+    <summary>Vorherige Kapitel (<span id="prevCount">0</span>)</summary>
+    <div class="prev-list" id="progressList">
+      <p class="placeholder">Noch keine Kapitel abgeschlossen.</p>
+    </div>
+  </details>
 </div>
 
 <dialog class="info-modal" id="infoModal">
@@ -370,27 +483,95 @@
   </div>
 </dialog>
 
+<dialog class="info-modal" id="doneModal">
+  <div class="modal-inner">
+    <div class="modal-head">
+      <h2>Kapitel fertig <span class="done-check">&#10003;</span></h2>
+      <button class="modal-close" id="doneModalClose" aria-label="Schließen">&#10005;</button>
+    </div>
+    <p class="done-label" id="doneModalLabel"></p>
+    <p class="done-detail" id="doneModalDetail"></p>
+    <div class="modal-actions">
+      <button class="btn" id="doneModalReveal">Im Finder zeigen</button>
+      <button class="btn btn-primary" id="doneModalNext">Nächstes Kapitel</button>
+    </div>
+  </div>
+</dialog>
+
 <script>
   let pdfPaths = [];
-  let hasPending = false;
   let mode = "summary";
+  let completedChapters = [];
 
   const el = (id) => document.getElementById(id);
-  const logEl = el("log");
   const outputInput = el("outputPath");
   const revealBtn = el("revealBtn");
   const fileNameEl = el("fileName");
   const deckNameRow = el("deckNameRow");
   const deckNameInput = el("deckName");
+  const progressList = el("progressList");
+  const progressPillText = el("progressPillText");
+  const prevCount = el("prevCount");
 
-  function logLine(text, kind) {
-    if (logEl.querySelector(".placeholder")) logEl.innerHTML = "";
-    const p = document.createElement("p");
-    p.className = "line" + (kind ? " " + kind : "");
-    p.textContent = text;
-    logEl.appendChild(p);
-    logEl.scrollTop = logEl.scrollHeight;
+  const step1 = el("step1");
+  const step1Icon = el("step1Icon");
+  const step1Detail = el("step1Detail");
+  const step2 = el("step2");
+  const step2Icon = el("step2Icon");
+  const step2Detail = el("step2Detail");
+
+  const STEP1_HINT = "Kopiert den Kapiteltext als Prompt in die Zwischenablage.";
+  const STEP2_HINT_WAIT = "Erst Schritt 1 abschließen.";
+  const STEP2_HINT_READY = "Antwort im Chat-Tool kopieren, dann hier einlesen.";
+
+  function setStepState(stepEl, iconEl, state, iconText, detailEl, detailText) {
+    stepEl.className = "step-item" + (state ? " " + state : "");
+    iconEl.textContent = iconText;
+    detailEl.textContent = detailText;
   }
+
+  function resetSteps() {
+    setStepState(step1, step1Icon, "pending", "1", step1Detail, STEP1_HINT);
+    setStepState(step2, step2Icon, "pending", "2", step2Detail, STEP2_HINT_WAIT);
+  }
+
+  function currentChapterLabel() {
+    if (mode === "flashcards" && deckNameInput.value.trim()) return deckNameInput.value.trim();
+    if (fileNameEl.classList.contains("chosen")) return fileNameEl.textContent;
+    return "Kapitel";
+  }
+
+  function renderProgress() {
+    const count = completedChapters.length;
+    progressPillText.textContent = count === 1 ? "1 Kapitel erledigt" : count + " Kapitel erledigt";
+    prevCount.textContent = String(count);
+    if (!count) {
+      progressList.innerHTML = '<p class="placeholder">Noch keine Kapitel abgeschlossen.</p>';
+      return;
+    }
+    progressList.innerHTML = "";
+    completedChapters.forEach((c) => {
+      const p = document.createElement("p");
+      p.className = "line success";
+      p.textContent = "✓ " + c.label;
+      p.title = c.outPath;
+      progressList.appendChild(p);
+    });
+    progressList.scrollTop = progressList.scrollHeight;
+  }
+
+  function resetForNextChapter() {
+    pdfPaths = [];
+    fileNameEl.textContent = "Keine Datei gewählt";
+    fileNameEl.classList.remove("chosen");
+    outputInput.value = "";
+    deckNameInput.value = "";
+    resetSteps();
+    revealBtn.disabled = true;
+    revealBtn.classList.remove("ready");
+  }
+
+  el("newChapterBtn").addEventListener("click", resetForNextChapter);
 
   function setMode(newMode) {
     mode = newMode;
@@ -403,6 +584,9 @@
     if (current && /\.(md|apkg)$/i.test(current)) {
       outputInput.value = current.replace(/\.(md|apkg)$/i, "." + newExt);
     }
+    resetSteps();
+    revealBtn.disabled = true;
+    revealBtn.classList.remove("ready");
   }
 
   el("modeSummary").addEventListener("click", () => setMode("summary"));
@@ -414,18 +598,34 @@
     if (e.target === el("infoModal")) el("infoModal").close();
   });
 
+  el("doneModalClose").addEventListener("click", () => el("doneModal").close());
+  el("doneModal").addEventListener("click", (e) => {
+    if (e.target === el("doneModal")) el("doneModal").close();
+  });
+  el("doneModalReveal").addEventListener("click", () => window.pywebview.api.reveal_output());
+  el("doneModalNext").addEventListener("click", () => {
+    el("doneModal").close();
+    resetForNextChapter();
+    el("pickFilesBtn").click();
+  });
+
+  function showDoneModal(label, message) {
+    el("doneModalLabel").textContent = label;
+    el("doneModalDetail").textContent = message;
+    el("doneModal").showModal();
+  }
+
   el("pickFilesBtn").addEventListener("click", async () => {
     const result = await window.pywebview.api.pick_files();
     if (result.files && result.files.length) {
       fileNameEl.textContent = result.files.join(", ");
       fileNameEl.classList.add("chosen");
-      if (!outputInput.value.trim()) {
-        const ext = mode === "flashcards" ? "apkg" : "md";
-        outputInput.value = result.default_output_dir + "/" + result.default_output_base + "." + ext;
-      }
-      if (!deckNameInput.value.trim()) {
-        deckNameInput.value = result.default_deck_name;
-      }
+      const ext = mode === "flashcards" ? "apkg" : "md";
+      outputInput.value = result.default_output_dir + "/" + result.default_output_base + "." + ext;
+      deckNameInput.value = result.default_deck_name;
+      resetSteps();
+      revealBtn.disabled = true;
+      revealBtn.classList.remove("ready");
     }
   });
 
@@ -438,26 +638,31 @@
   el("copyPromptBtn").addEventListener("click", async () => {
     const result = await window.pywebview.api.copy_prompt(mode);
     if (!result.ok) {
-      logLine(result.error, "error");
+      setStepState(step1, step1Icon, "error", "✗", step1Detail, result.error);
       return;
     }
-    hasPending = true;
-    logLine("Prompt in die Zwischenablage kopiert. Füge ihn in ChatGPT/Claude/Gemini ein, schick ihn ab, und kopiere danach NUR die Antwort zurück.");
+    setStepState(step1, step1Icon, "done", "✓", step1Detail, "In Zwischenablage kopiert.");
+    setStepState(step2, step2Icon, "active", "2", step2Detail, STEP2_HINT_READY);
   });
 
   el("readResponseBtn").addEventListener("click", async () => {
     const result = await window.pywebview.api.read_response(mode, outputInput.value.trim(), deckNameInput.value.trim());
     if (!result.ok) {
-      logLine(result.error, "error");
+      setStepState(step2, step2Icon, "error", "✗", step2Detail, result.error);
       return;
     }
-    logLine(result.message, "success");
-    logLine("Fertig: " + result.out_path, "success");
+    setStepState(step2, step2Icon, "done", "✓", step2Detail, result.message);
     revealBtn.disabled = false;
     revealBtn.classList.add("ready");
+    const label = currentChapterLabel();
+    completedChapters.push({ label, outPath: result.out_path });
+    renderProgress();
+    showDoneModal(label, result.message);
   });
 
   revealBtn.addEventListener("click", () => window.pywebview.api.reveal_output());
+
+  resetSteps();
 </script>
 </body>
 </html>
