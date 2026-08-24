@@ -287,9 +287,7 @@
   .step-item.error .step-detail { color: var(--error); }
   .step-item.done .step-detail { color: var(--success); }
 
-  .line { margin: 0 0 2px; }
-  .line.success { color: var(--success); }
-  .placeholder { color: var(--ink-soft); font-style: italic; }
+  .placeholder { color: var(--ink-soft); font-style: italic; font-size: 11.5px; }
 
   details.prev-chapters { margin-top: 2px; }
   details.prev-chapters summary {
@@ -315,13 +313,51 @@
     background: var(--bg-card);
     border: 1px solid var(--line);
     border-radius: 8px;
-    padding: 10px 12px;
-    max-height: 130px;
+    padding: 6px;
+    max-height: 150px;
     overflow-y: auto;
-    font-family: ui-monospace, "SF Mono", Menlo, monospace;
-    font-size: 11.5px;
-    line-height: 1.6;
     margin-top: 4px;
+  }
+  .prev-list .placeholder { padding: 4px 6px; display: block; }
+
+  .lib-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  .lib-item:hover { background: var(--bg); }
+  .lib-item:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+  .lib-badge {
+    flex: none;
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 9.5px;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+  .lib-badge.summary { background: rgba(43,76,126,0.14); color: var(--accent-blue); }
+  .lib-badge.flashcards { background: rgba(244,197,66,0.28); color: #8a6d13; }
+  @media (prefers-color-scheme: dark) {
+    .lib-badge.flashcards { color: #E8C24A; }
+  }
+  .lib-label {
+    flex: 1;
+    min-width: 0;
+    font-size: 11.5px;
+    color: var(--ink);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .lib-date {
+    flex: none;
+    font-size: 10.5px;
+    color: var(--ink-soft);
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
   }
 
   dialog.info-modal {
@@ -460,10 +496,15 @@
 
   <div class="divider" aria-hidden="true"></div>
 
-  <details class="prev-chapters" id="prevChaptersDetails">
-    <summary>Vorherige Kapitel (<span id="prevCount">0</span>)</summary>
+  <div class="row" style="justify-content: space-between;">
+    <label class="field-label" style="width: auto;">Bereits vorhanden?</label>
+    <button class="btn" id="importBtn">Datei(en) importieren</button>
+  </div>
+
+  <details class="prev-chapters" id="prevChaptersDetails" open>
+    <summary>Bibliothek (<span id="prevCount">0</span>)</summary>
     <div class="prev-list" id="progressList">
-      <p class="placeholder">Noch keine Kapitel abgeschlossen.</p>
+      <p class="placeholder">Noch nichts in der Bibliothek.</p>
     </div>
   </details>
 </div>
@@ -501,7 +542,7 @@
 <script>
   let pdfPaths = [];
   let mode = "summary";
-  let completedChapters = [];
+  let libraryEntries = [];
 
   const el = (id) => document.getElementById(id);
   const outputInput = el("outputPath");
@@ -535,29 +576,63 @@
     setStepState(step2, step2Icon, "pending", "2", step2Detail, STEP2_HINT_WAIT);
   }
 
-  function currentChapterLabel() {
-    if (mode === "flashcards" && deckNameInput.value.trim()) return deckNameInput.value.trim();
-    if (fileNameEl.classList.contains("chosen")) return fileNameEl.textContent;
-    return "Kapitel";
+  function formatEntryDate(isoString) {
+    if (!isoString) return "";
+    const parts = isoString.split("T");
+    if (parts.length !== 2) return isoString;
+    const [datePart, timePart] = parts;
+    const [year, monthNum, day] = datePart.split("-");
+    return `${day}.${monthNum}. ${timePart.slice(0, 5)}`;
   }
 
-  function renderProgress() {
-    const count = completedChapters.length;
-    progressPillText.textContent = count === 1 ? "1 Kapitel erledigt" : count + " Kapitel erledigt";
+  function renderLibrary() {
+    const count = libraryEntries.length;
+    progressPillText.textContent = count === 1 ? "1 in der Bibliothek" : count + " in der Bibliothek";
     prevCount.textContent = String(count);
+    progressList.innerHTML = "";
     if (!count) {
-      progressList.innerHTML = '<p class="placeholder">Noch keine Kapitel abgeschlossen.</p>';
+      progressList.innerHTML = '<p class="placeholder">Noch nichts in der Bibliothek.</p>';
       return;
     }
-    progressList.innerHTML = "";
-    completedChapters.forEach((c) => {
-      const p = document.createElement("p");
-      p.className = "line success";
-      p.textContent = "✓ " + c.label;
-      p.title = c.outPath;
-      progressList.appendChild(p);
-    });
-    progressList.scrollTop = progressList.scrollHeight;
+    libraryEntries
+      .map((entry, idx) => ({ entry, idx }))
+      .reverse()
+      .forEach(({ entry, idx }) => {
+        const row = document.createElement("div");
+        row.className = "lib-item";
+        row.tabIndex = 0;
+        row.title = entry.html_path || entry.apkg_path || "";
+
+        const badge = document.createElement("span");
+        badge.className = "lib-badge " + entry.type;
+        badge.textContent = entry.type === "flashcards" ? "APKG" : "MD";
+
+        const label = document.createElement("span");
+        label.className = "lib-label";
+        label.textContent = entry.label;
+
+        const date = document.createElement("span");
+        date.className = "lib-date";
+        date.textContent = formatEntryDate(entry.created_at);
+
+        row.appendChild(badge);
+        row.appendChild(label);
+        row.appendChild(date);
+
+        const open = () => window.pywebview.api.open_library_item(idx);
+        row.addEventListener("click", open);
+        row.addEventListener("keydown", (e) => {
+          if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(); }
+        });
+
+        progressList.appendChild(row);
+      });
+  }
+
+  async function refreshLibrary() {
+    const result = await window.pywebview.api.get_library();
+    libraryEntries = (result && result.entries) || [];
+    renderLibrary();
   }
 
   function resetForNextChapter() {
@@ -654,15 +729,32 @@
     setStepState(step2, step2Icon, "done", "✓", step2Detail, result.message);
     revealBtn.disabled = false;
     revealBtn.classList.add("ready");
-    const label = currentChapterLabel();
-    completedChapters.push({ label, outPath: result.out_path });
-    renderProgress();
-    showDoneModal(label, result.message);
+    await refreshLibrary();
+    showDoneModal(result.label, result.message);
   });
 
   revealBtn.addEventListener("click", () => window.pywebview.api.reveal_output());
 
+  el("importBtn").addEventListener("click", async () => {
+    const btn = el("importBtn");
+    const original = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = "Importiere…";
+    const result = await window.pywebview.api.import_files();
+    btn.disabled = false;
+    btn.textContent = result.count ? `${result.count} importiert` : original;
+    if (result.count) {
+      await refreshLibrary();
+      setTimeout(() => { btn.textContent = original; }, 2200);
+    }
+  });
+
   resetSteps();
+  if (window.pywebview) {
+    refreshLibrary();
+  } else {
+    window.addEventListener("pywebviewready", refreshLibrary);
+  }
 </script>
 </body>
 </html>
