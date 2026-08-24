@@ -68,15 +68,17 @@ def build_flashcards_prompt(content: str, captions: list) -> str:
     )
 
 
-CAPTION_START_RE = re.compile(r"^Abbildung\s+\d+[:.]")
-SOURCE_LINE_RE = re.compile(r"^Quelle:")
+CAPTION_START_RE = re.compile(r"^(?:Abbildung|Figure)\s+\d+[:.]")
+SOURCE_LINE_RE = re.compile(r"^(?:Quelle|Source):")
 
 
 def extract_captions(page_text: str):
-    """Findet 'Abbildung N: ...'-Bildunterschriften im extrahierten Seitentext.
+    """Findet 'Abbildung N: ...'- bzw. 'Figure N: ...'-Bildunterschriften im extrahierten Seitentext.
 
     IU-Skripte platzieren diese direkt bei der Abbildung, gefolgt von einer
-    'Quelle: ...'-Zeile. Eine Unterschrift kann über mehrere Zeilen umbrechen.
+    'Quelle:'/'Source:'-Zeile. Manche Skripte (auch deutschsprachige) beschriften Abbildungen
+    auf Englisch ("Figure N: ..." / "Source: ..."). Eine Unterschrift kann über mehrere Zeilen
+    umbrechen.
     """
     captions = []
     lines = page_text.splitlines()
@@ -133,7 +135,7 @@ def collect_all_captions(all_image_pages):
     return captions
 
 
-ABB_NUM_RE = re.compile(r"Abbildung\s+(\d+)")
+ABB_NUM_RE = re.compile(r"(?:Abbildung|Figure)\s+(\d+)")
 
 
 def caption_key(text):
@@ -147,14 +149,18 @@ def attach_images_to_cards(cards, saved_images):
     """Hängt Bilder an die passende KI-generierte Karte an (Matching über die Abbildungsnummer).
 
     Gibt die Bilder zurück, die keiner Karte zugeordnet werden konnten (z. B. weil die KI
-    keine Frage dazu erstellt hat) sowie die Pfade der bereits eingebetteten Bilder.
+    keine Frage dazu erstellt hat, oder weil sich für das Bild gar keine Bildunterschrift
+    zuordnen ließ) sowie die Pfade der bereits eingebetteten Bilder.
     """
     by_key = {}
+    unkeyed = []
     for entry in saved_images:
         _, _, _, caption = entry
         key = caption_key(caption)
         if key is not None:
             by_key.setdefault(key, []).append(entry)
+        else:
+            unkeyed.append(entry)
 
     embedded_paths = []
     for card in cards:
@@ -167,7 +173,7 @@ def attach_images_to_cards(cards, saved_images):
             card["back"] = f'{card["back"]}<br><img src="{img_path.name}">'
             embedded_paths.append(img_path)
 
-    leftover = [entry for entries in by_key.values() for entry in entries]
+    leftover = [entry for entries in by_key.values() for entry in entries] + unkeyed
     return leftover, embedded_paths
 
 
@@ -201,13 +207,17 @@ def place_images_inline(md_text: str, saved_images, out_dir: Path):
     Matching läuft wie bei den Karteikarten über caption_key() (Abbildungsnummer), damit kleine
     Abweichungen im von der KI zurückgegebenen Bildunterschriften-Text nicht zum Scheitern führen.
     Bilder, die die KI nicht referenziert hat, werden als 'übrig' zurückgegeben statt verworfen.
+    Das gilt auch für Bilder, denen sich gar keine Bildunterschrift zuordnen ließ.
     """
     by_key = {}
+    unkeyed = []
     for entry in saved_images:
         _, _, _, caption = entry
         key = caption_key(caption)
         if key is not None:
             by_key.setdefault(key, []).append(entry)
+        else:
+            unkeyed.append(entry)
 
     def repl(m):
         matches = by_key.get(caption_key(m.group(1)))
@@ -219,7 +229,7 @@ def place_images_inline(md_text: str, saved_images, out_dir: Path):
         return f"![{label}]({rel})"
 
     placed_md = IMAGE_MARKER_RE.sub(repl, md_text)
-    leftover = [entry for entries in by_key.values() for entry in entries]
+    leftover = [entry for entries in by_key.values() for entry in entries] + unkeyed
     return placed_md, leftover
 
 
