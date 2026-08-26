@@ -12,13 +12,27 @@ from pathlib import Path
 import markdown as markdown_lib
 from pypdf import PdfReader
 
-def build_summary_prompt(content: str, captions: list) -> str:
+DETAIL_INSTRUCTIONS = {
+    "kurz": (
+        "Fasse dich dabei bewusst kurz und knapp: nur die wichtigsten Kernbegriffe und "
+        "Kernaussagen in Stichpunkten, ohne ausführliche Erklärungen, Beispiele oder Herleitungen."
+    ),
+    "ausfuehrlich": (
+        "Gehe dabei ausführlich genug ins Detail, dass die Zusammenfassung auch ohne erneutes "
+        "Lesen des Originaltexts zum inhaltlichen Verständnis ausreicht."
+    ),
+}
+
+
+def build_summary_prompt(content: str, captions: list, detail_level: str = "ausfuehrlich",
+                          include_glossary: bool = False) -> str:
     intro = (
         "Du hilfst einem Studenten, nach einer Lernpause schnell wieder in ein Kapitel eines "
         "Studienskripts hineinzufinden.\n\n"
         "Fasse den folgenden Kapiteltext als prägnante Wiedereinstiegs-Zusammenfassung zusammen: "
         "die Kernbegriffe, die wichtigsten Zusammenhänge und was man sich für eine Prüfung merken sollte."
     )
+    intro += "\n\n" + DETAIL_INSTRUCTIONS.get(detail_level, DETAIL_INSTRUCTIONS["ausfuehrlich"])
     if captions:
         caption_block = "\n".join(f"- {c}" for c in captions)
         intro += (
@@ -30,6 +44,16 @@ def build_summary_prompt(content: str, captions: list) -> str:
             "Nicht jede Abbildung muss referenziert werden — nur die, die wirklich zum jeweiligen "
             "Abschnitt passt."
         )
+    if include_glossary:
+        intro += (
+            '\n\nErgänze vor dem Abschluss einen eigenen Abschnitt mit der exakten Überschrift '
+            '"## Glossar", der die wichtigsten Fachbegriffe aus dem Kapitel kurz und verständlich erklärt.'
+        )
+    intro += (
+        "\n\nBeende deine Zusammenfassung IMMER mit einem eigenen Abschnitt mit der exakten "
+        'Überschrift "## Prüfungs-Merkliste in Kürze", der die wichtigsten Begriffe, Formeln und '
+        "Fakten aus dem Kapitel noch einmal knapp in Stichpunkten auflistet."
+    )
     intro += (
         '\n\nAntworte NUR mit der Zusammenfassung selbst (Markdown), ohne einleitende Sätze wie '
         '"Hier ist...".'
@@ -101,14 +125,14 @@ def extract_captions(page_text: str):
     return captions
 
 
-def extract_chapter(pdf_path: Path):
+def extract_chapter(pdf_path: Path, extract_images: bool = True):
     reader = PdfReader(pdf_path)
     text_parts = []
     image_pages = []
     for i, page in enumerate(reader.pages, start=1):
         page_text = page.extract_text() or ""
         text_parts.append(page_text)
-        if page.images:
+        if extract_images and page.images:
             images = list(page.images)
             captions = extract_captions(page_text)
             if len(captions) != len(images):
@@ -117,11 +141,11 @@ def extract_chapter(pdf_path: Path):
     return "\n".join(text_parts), image_pages
 
 
-def build_content(pdf_paths):
+def build_content(pdf_paths, extract_images: bool = True):
     sections = []
     all_image_pages = []
     for pdf_path in pdf_paths:
-        text, image_pages = extract_chapter(pdf_path)
+        text, image_pages = extract_chapter(pdf_path, extract_images=extract_images)
         sections.append(f"## Quelle: {pdf_path.name}\n\n{text}")
         all_image_pages.append((pdf_path, image_pages))
     return "\n\n".join(sections), all_image_pages
@@ -133,6 +157,12 @@ def collect_all_captions(all_image_pages):
         for _, _, page_captions in image_pages:
             captions.extend(c for c in page_captions if c)
     return captions
+
+
+def any_images_found(all_image_pages):
+    """True, wenn mindestens ein PDF tatsächlich Bilder enthielt (all_image_pages hat sonst
+    unabhängig davon immer einen Eintrag pro PDF, auch wenn dessen Bildliste leer ist)."""
+    return any(image_pages for _, image_pages in all_image_pages)
 
 
 ABB_NUM_RE = re.compile(r"(?:Abbildung|Figure)\s+(\d+)")
@@ -226,7 +256,11 @@ def place_images_inline(md_text: str, saved_images, out_dir: Path):
         pdf_path, page_num, img_path, caption = matches.pop(0)
         rel = img_path.relative_to(out_dir)
         label = caption or f"{pdf_path.stem} Seite {page_num}"
-        return f"![{label}]({rel})"
+        # Leerzeilen erzwingen: die KI setzt den Marker zwar auf eine eigene Zeile,
+        # aber ohne Leerzeile drumherum verschmilzt Markdown das Bild sonst mit dem
+        # umgebenden Absatz (oder macht es bei einer folgenden "---"-Zeile zur
+        # Setext-Überschrift) – dann bleibt es ein ungebremstes <img> ohne Breitenlimit.
+        return f"\n\n![{label}]({rel})\n\n"
 
     placed_md = IMAGE_MARKER_RE.sub(repl, md_text)
     leftover = [entry for entries in by_key.values() for entry in entries] + unkeyed
@@ -255,185 +289,109 @@ SUMMARY_HTML_TEMPLATE = """<!doctype html>
 <title>Zusammenfassung · @@TITLE@@</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=Archivo:wght@400;500;600&family=Archivo+Black&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
-  :root{ --shell-bg:#E8EAEE; --shell-ink:#23262B; --shell-mut:#7A7F87; }
+  :root{
+    --ink:#2A2E34; --mut:#8A8579;
+    --c0:#E8542F; /* Koralle */
+    --c1:#0E7C66; /* Petrol */
+    --c2:#345995; /* Indigo */
+    --c3:#A83279; /* Beere */
+  }
   *{margin:0;padding:0;box-sizing:border-box}
-  body{ background:var(--shell-bg); font-family:'Inter',system-ui,sans-serif; color:var(--shell-ink); -webkit-font-smoothing:antialiased; }
+  img{ max-width:100% }
+  body{
+    background:#FAF3E7; color:var(--ink); font-family:'IBM Plex Sans',system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased;
+    background-image:radial-gradient(rgba(42,46,52,.05) 1px,transparent 1px);
+    background-size:16px 16px;
+  }
 
-  .shell-head{ max-width:900px;margin:0 auto;padding:36px 24px 4px;display:flex;justify-content:space-between;align-items:flex-start;gap:16px; }
-  .shell-head h1{ font-family:'Space Grotesk',sans-serif;font-size:20px;font-weight:600;letter-spacing:-0.01em; }
-  .shell-head p{ color:var(--shell-mut);font-size:13px;margin-top:5px; }
-  .bar{ max-width:900px;margin:20px auto 0;padding:0 24px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap; }
-  .tabs{ display:flex;gap:8px;flex-wrap:wrap; }
-  .tab{ border:1px solid #C9CCD3;background:#F4F5F7;color:var(--shell-ink); padding:8px 16px;border-radius:999px;font-size:13.5px;font-weight:500; cursor:pointer;font-family:inherit;transition:all .15s ease; }
-  .tab:hover{ background:#fff }
-  .tab:focus-visible{ outline:2px solid #345995;outline-offset:2px }
-  .tab[aria-selected="true"]{ background:#23262B;color:#fff;border-color:#23262B }
-  .print-btn{ border:1px solid #C9CCD3;background:#fff;color:var(--shell-ink);padding:8px 16px;border-radius:999px;font-size:13.5px;font-weight:500;cursor:pointer;font-family:inherit; }
-  .print-btn:hover{ border-color:#23262B }
+  .page{ max-width:760px;margin:0 auto;padding:48px 24px 90px }
 
-  .stage{ max-width:900px;margin:20px auto 70px;padding:0 24px }
-  .variant{ display:none }
-  .variant.active{ display:block;animation:fadein .2s ease }
-  @keyframes fadein{ from{opacity:0;transform:translateY(4px)} to{opacity:1;transform:none} }
+  .top{ display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:8px }
+  .print-btn{ border:1.5px solid var(--ink);background:#fff;color:var(--ink);padding:7px 16px;border-radius:999px;font-size:13px;font-weight:500;cursor:pointer;font-family:'IBM Plex Sans',sans-serif;flex:none }
+  .print-btn:hover{ background:var(--ink);color:#fff }
 
-  .paper{ background:#fff;border-radius:6px; box-shadow:0 1px 2px rgba(20,22,26,.08),0 12px 32px rgba(20,22,26,.10); overflow:hidden; }
+  h1{
+    font-family:'Caveat',cursive;font-weight:700;font-size:clamp(38px,7vw,58px);
+    line-height:1.1;color:var(--ink);
+    text-decoration:underline wavy var(--c0);text-decoration-thickness:2.5px;text-underline-offset:8px;
+    margin-bottom:30px;
+  }
 
-  .doc figure{ margin:26px 0;text-align:center }
-  .doc img{ max-width:100%;max-height:440px;height:auto;width:auto;object-fit:contain;border-radius:8px;display:inline-block }
-  .doc figcaption{ margin-top:8px;font-size:11.5px;color:var(--shell-mut);font-style:italic }
+  .intro{ font-size:15.5px;line-height:1.75;color:var(--ink);margin-bottom:30px }
 
-  /* Simpel */
-  .v1 .paper{ padding:64px 24px }
-  .v1 .doc{ max-width:620px;margin:0 auto;font-family:'IBM Plex Sans',sans-serif;color:#1B1E23 }
-  .v1 .meta{ font-family:'IBM Plex Mono',monospace;font-size:12px;color:#6B7280; display:flex;gap:18px;flex-wrap:wrap;margin-bottom:26px; }
-  .v1 .doc h1{ font-size:29px;font-weight:600;letter-spacing:-0.015em;line-height:1.2;margin-bottom:26px }
-  .v1 .doc h2{ font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.09em;color:#345995;margin:36px 0 12px }
-  .v1 .doc p{ font-size:15px;line-height:1.7;color:#2A2E34;margin-bottom:14px }
-  .v1 .doc ul,.v1 .doc ol{ margin:0 0 14px;padding-left:0;list-style:none }
-  .v1 .doc li{ font-size:15px;line-height:1.7;color:#2A2E34;padding-left:20px;position:relative;margin-bottom:8px }
-  .v1 .doc ul li::before{ content:"—";position:absolute;left:0;color:#9AA0A8 }
-  .v1 .doc ol{ counter-reset:v1step }
-  .v1 .doc ol li{ counter-increment:v1step }
-  .v1 .doc ol li::before{ content:counter(v1step)".";color:#345995;font-weight:600 }
-  .v1 .doc strong{ font-weight:600;color:#1B1E23 }
-  .v1 .doc code{ font-family:'IBM Plex Mono',monospace;font-size:13px;background:#F1F3F6;padding:2px 6px;border-radius:4px }
-  .v1 .doc img{ box-shadow:0 1px 3px rgba(20,22,26,.14) }
-  .v1 .doc footer{ margin-top:48px;padding-top:16px;border-top:1px solid #E5E7EB; font-family:'IBM Plex Mono',monospace;font-size:11px;color:#9AA0A8; }
+  .note{
+    position:relative;background:#FFFDF8;border-radius:5px;
+    box-shadow:0 1px 2px rgba(30,25,15,.06),0 10px 26px rgba(30,25,15,.09);
+    padding:32px 30px 30px;margin:0 0 40px;
+  }
+  .note:nth-of-type(odd){ transform:rotate(-0.5deg) }
+  .note:nth-of-type(even){ transform:rotate(0.45deg) }
+  .note::before{
+    content:"";position:absolute;top:-13px;left:36px;width:76px;height:22px;
+    background:var(--tape,var(--c0));opacity:.5;transform:rotate(-3deg);
+    box-shadow:0 1px 2px rgba(30,25,15,.15);
+  }
+  .note-0{ --tape:var(--c0) } .note-0 h2{ color:var(--c0);text-decoration-color:var(--c0) }
+  .note-1{ --tape:var(--c1) } .note-1 h2{ color:var(--c1);text-decoration-color:var(--c1) }
+  .note-2{ --tape:var(--c2) } .note-2 h2{ color:var(--c2);text-decoration-color:var(--c2) }
+  .note-3{ --tape:var(--c3) } .note-3 h2{ color:var(--c3);text-decoration-color:var(--c3) }
 
-  /* Medium */
-  .v2 .paper{ background:#FBFBF9;padding:0 }
-  .v2 .layout{ display:grid;grid-template-columns:1fr 220px;min-height:400px }
-  .v2 .main{ padding:52px 48px;font-family:'Inter',sans-serif;color:#20242A }
-  .v2 .rail{ background:#F1F1EC;border-left:1px solid #E2E2DB;padding:52px 26px;font-family:'Inter',sans-serif }
-  .v2 .doc h1{ font-family:'Space Grotesk',sans-serif;font-size:28px;font-weight:700;letter-spacing:-0.02em;line-height:1.18;margin-bottom:18px }
-  .v2 .doc h2{ font-family:'Space Grotesk',sans-serif;font-size:15.5px;font-weight:600;margin:32px 0 12px;display:flex;align-items:center;gap:10px }
-  .v2 .doc h2::after{ content:"";flex:1;height:1px;background:#E4E4DD }
-  .v2 .doc p{ font-size:14.5px;line-height:1.7;color:#33383F;margin-bottom:12px }
-  .v2 .doc ul,.v2 .doc ol{ margin:0 0 12px;padding-left:0;list-style:none }
-  .v2 .doc li{ font-size:14.5px;line-height:1.7;color:#33383F;padding-left:22px;position:relative;margin-bottom:7px }
-  .v2 .doc ul li::before{ content:"";position:absolute;left:2px;top:8px;width:7px;height:7px;border-radius:2px;background:#0E7C66;opacity:.8 }
-  .v2 .doc ol{ counter-reset:v2step }
-  .v2 .doc ol li{ counter-increment:v2step }
-  .v2 .doc ol li::before{ content:counter(v2step);position:absolute;left:0;top:1px;width:16px;height:16px;border-radius:50%;background:#0E7C66;color:#fff;font-size:10px;font-weight:600;display:flex;align-items:center;justify-content:center }
-  .v2 .doc strong{ font-weight:600;color:#191D22 }
-  .v2 .doc code{ font-family:'IBM Plex Mono',monospace;font-size:12.5px;background:#EDEDE6;padding:2px 6px;border-radius:4px }
-  .v2 .doc img{ border:1px solid #E4E4DD }
-  .v2 .rail h3{ font-family:'Space Grotesk',sans-serif;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.1em;color:#8A8E85;margin-bottom:10px }
-  .v2 .rail dl div{ margin-bottom:14px }
-  .v2 .rail dt{ font-size:10.5px;color:#8A8E85 }
-  .v2 .rail dd{ font-size:13px;font-weight:500;color:#2A2E34;margin-top:1px;font-family:'IBM Plex Mono',monospace;word-break:break-word }
-  @media(max-width:720px){ .v2 .layout{grid-template-columns:1fr} .v2 .rail{border-left:none;border-top:1px solid #E2E2DB} .v2 .main{padding:36px 24px} }
+  h2{
+    font-family:'Caveat',cursive;font-weight:700;font-size:30px;line-height:1.15;
+    text-decoration:underline wavy;text-decoration-thickness:2px;text-underline-offset:6px;
+    margin-bottom:14px;
+  }
+  .note > h2:first-child{ margin-top:0 }
+  p{ font-size:15.5px;line-height:1.75;color:var(--ink);margin-bottom:13px }
+  ul,ol{ margin:0 0 13px;padding-left:0;list-style:none }
+  li{ font-size:15.5px;line-height:1.75;color:var(--ink);padding-left:22px;position:relative;margin-bottom:8px }
+  ul li::before{ content:"";position:absolute;left:2px;top:9px;width:7px;height:7px;border-radius:50%;background:var(--tape,var(--c0)) }
+  ol{ counter-reset:step }
+  ol li{ counter-increment:step }
+  ol li::before{ content:counter(step)".";color:var(--tape,var(--c0));font-weight:600;font-family:'IBM Plex Mono',monospace;font-size:13px }
+  strong{ font-weight:600;color:#1B1E23 }
+  code{ font-family:'IBM Plex Mono',monospace;font-size:13px;background:#F1EDE2;padding:2px 6px;border-radius:4px }
 
-  /* Fancy */
-  .v3 .paper{ background:#F2F3EF;position:relative; background-image:radial-gradient(rgba(34,58,140,.05) 1px,transparent 1px);background-size:14px 14px; }
-  .v3 .doc{ max-width:660px;margin:0 auto;padding:52px 40px 60px;font-family:'Archivo',sans-serif;color:#1E2128 }
-  .v3 .topbar{ display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:30px; font-family:'Space Mono',monospace;font-size:11px;color:#223A8C; }
-  .v3 .stamp{ border:2px solid #E8542F;color:#E8542F;padding:4px 11px;font-weight:700; letter-spacing:.08em;transform:rotate(3deg);font-size:10.5px;mix-blend-mode:multiply; }
-  .v3 .doc h1{ font-family:'Archivo Black',sans-serif;font-size:clamp(28px,4.4vw,42px); line-height:1.05;letter-spacing:-0.015em;text-transform:uppercase;color:#223A8C;margin-bottom:26px; }
-  .v3 .doc h2{ font-family:'Space Mono',monospace;font-size:12px;font-weight:700; text-transform:uppercase;letter-spacing:.14em;color:#E8542F;margin:30px 0 12px; }
-  .v3 .doc p{ font-size:14.5px;line-height:1.68;color:#2B2F38;margin-bottom:12px }
-  .v3 .doc ul,.v3 .doc ol{ margin:0 0 12px;padding-left:0;list-style:none }
-  .v3 .doc li{ font-size:14px;line-height:1.68;color:#2B2F38;padding-left:24px;position:relative;margin-bottom:9px }
-  .v3 .doc ul li::before{ content:"✕";position:absolute;left:0;top:0;color:#223A8C;font-size:11px;font-weight:700 }
-  .v3 .doc ol{ counter-reset:v3step }
-  .v3 .doc ol li{ counter-increment:v3step }
-  .v3 .doc ol li::before{ content:counter(v3step);position:absolute;left:0;top:0;color:#E8542F;font-weight:700;font-family:'Space Mono',monospace }
-  .v3 .doc strong{ font-weight:600;color:#223A8C }
-  .v3 .doc code{ font-family:'Space Mono',monospace;font-size:12px;background:rgba(34,58,140,.09);padding:2px 6px }
-  .v3 .doc img{ border:2px solid #223A8C }
-  .v3 .doc figcaption{ font-family:'Space Mono',monospace;text-transform:uppercase;letter-spacing:.05em;font-size:10px }
-  .v3 .doc footer{ margin-top:40px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px; font-family:'Space Mono',monospace;font-size:10px;color:#223A8C; border-top:2px solid #223A8C;padding-top:12px;text-transform:uppercase;letter-spacing:.06em; }
-  @media(max-width:720px){ .v3 .doc{padding:36px 22px} }
+  figure{ margin:26px auto;text-align:center;max-width:420px }
+  figure:nth-of-type(odd){ transform:rotate(-1.1deg) }
+  figure:nth-of-type(even){ transform:rotate(1.3deg) }
+  figure img{
+    max-width:100%;max-height:380px;height:auto;width:auto;object-fit:contain;display:block;
+    background:#fff;border:1px solid #EAE3D2;padding:10px 10px 30px;
+    box-shadow:0 2px 4px rgba(30,25,15,.10),0 10px 22px rgba(30,25,15,.14);
+  }
+  figcaption{ margin-top:-22px;font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--mut);font-style:italic }
+
+  footer{ text-align:center;font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--mut);margin-top:20px }
 
   @media print{
-    body{ background:#fff }
-    .shell-head,.bar{ display:none }
-    .stage{ margin:0;padding:0;max-width:none }
-    .paper{ box-shadow:none;border-radius:0 }
-    .variant{ display:none }
-    .variant.active{ display:block }
+    body{ background:#fff;background-image:none }
+    .print-btn{ display:none }
+    .note{ box-shadow:none;transform:none }
+    .note::before{ display:none }
+    .note > h2:first-child{ break-after:avoid }
+    .note-last{ break-before:page }
+    figure{ transform:none;break-inside:avoid }
   }
-  @media (prefers-reduced-motion: reduce){ .variant.active{ animation:none } }
 </style>
 </head>
 <body>
 
-<header class="shell-head">
-  <div>
+<main class="page">
+  <div class="top">
     <h1>@@TITLE@@</h1>
-    <p>Wiedereinstiegs-Zusammenfassung · Kapitel-Assistent</p>
+    <button class="print-btn" id="print-btn">Drucken</button>
   </div>
-</header>
 
-<div class="bar">
-  <div class="tabs" role="tablist" aria-label="Design-Varianten">
-    <button class="tab" role="tab" aria-selected="true" data-target="var-1">Simpel</button>
-    <button class="tab" role="tab" aria-selected="false" data-target="var-2">Medium</button>
-    <button class="tab" role="tab" aria-selected="false" data-target="var-3">Fancy</button>
-  </div>
-  <button class="print-btn" id="print-btn">Drucken</button>
-</div>
-
-<main class="stage">
-
-<section class="variant v1 active" id="var-1" role="tabpanel">
-  <div class="paper">
-    <article class="doc">
-      <div class="meta"><span>Quelle: @@SOURCE@@</span><span>Erstellt: @@GENERATED@@</span></div>
 @@CONTENT@@
-      <footer>generiert von Kapitel-Assistent</footer>
-    </article>
-  </div>
-</section>
 
-<section class="variant v2" id="var-2" role="tabpanel" hidden>
-  <div class="paper">
-    <div class="layout">
-      <article class="main doc">
-@@CONTENT@@
-      </article>
-      <aside class="rail">
-        <h3>Meta</h3>
-        <dl>
-          <div><dt>Quelle</dt><dd>@@SOURCE@@</dd></div>
-          <div><dt>Erstellt</dt><dd>@@GENERATED@@</dd></div>
-        </dl>
-      </aside>
-    </div>
-  </div>
-</section>
-
-<section class="variant v3" id="var-3" role="tabpanel" hidden>
-  <div class="paper">
-    <article class="doc">
-      <div class="topbar">
-        <div>QUELLE: @@SOURCE@@<br>ERSTELLT: @@GENERATED@@</div>
-        <div class="stamp">AUTO-GENERIERT</div>
-      </div>
-@@CONTENT@@
-      <footer><span>Kapitel-Assistent</span><span>@@SOURCE@@</span></footer>
-    </article>
-  </div>
-</section>
-
+  <footer>Kapitel-Assistent · @@SOURCE@@ · @@GENERATED@@</footer>
 </main>
 
 <script>
-  const tabs = document.querySelectorAll('.tab');
-  const panels = document.querySelectorAll('.variant');
-  tabs.forEach(tab => {
-    tab.addEventListener('click', () => {
-      tabs.forEach(t => t.setAttribute('aria-selected', 'false'));
-      tab.setAttribute('aria-selected', 'true');
-      panels.forEach(p => {
-        const active = p.id === tab.dataset.target;
-        p.classList.toggle('active', active);
-        p.hidden = !active;
-      });
-    });
-  });
   document.getElementById('print-btn').addEventListener('click', () => window.print());
 </script>
 </body>
@@ -453,16 +411,70 @@ def wrap_images_as_figures(content_html: str) -> str:
     return IMG_PARAGRAPH_RE.sub(repl, content_html)
 
 
+NOTE_COLOR_COUNT = 4
+H2_SPLIT_RE = re.compile(r'(?=<h2\b)')
+MERKLISTE_HEADING_RE = re.compile(r'<h2>(?:(?!</h2>).)*?pr[uü]fungs-?merkliste', re.IGNORECASE | re.DOTALL)
+
+
+def wrap_sections_as_notes(content_html: str) -> str:
+    """Gruppiert den Inhalt nach H2-Überschriften in Karten mit rotierenden Akzentfarben.
+
+    Text vor der ersten H2 (falls vorhanden) bleibt ohne Karten-Wrapper. Enthält der Inhalt
+    gar keine H2 (z. B. weil die einzige Überschrift als Seitentitel verwendet wurde), wird
+    trotzdem alles als eine Karte dargestellt statt unformatiert zu bleiben.
+    """
+    parts = H2_SPLIT_RE.split(content_html)
+    intro, sections = parts[0], parts[1:]
+    if not sections:
+        return f'<section class="note note-0">{intro}</section>' if intro.strip() else ""
+    wrapped = [f'<div class="intro">{intro}</div>'] if intro.strip() else []
+    break_index = next((i for i, s in enumerate(sections) if MERKLISTE_HEADING_RE.match(s)), None)
+    if break_index is None and len(sections) > 1:
+        break_index = len(sections) - 1
+    for i, section in enumerate(sections):
+        extra = " note-last" if i == break_index else ""
+        wrapped.append(f'<section class="note note-{i % NOTE_COLOR_COUNT}{extra}">{section}</section>')
+    return "".join(wrapped)
+
+
+LEADING_H2_RE = re.compile(r'^<h2>(.*?)</h2>\s*')
+
+
+def promote_leading_heading(content_html: str, title: str, fallback_title: str):
+    """Vermeidet doppelte Titel: Fängt der Inhalt direkt mit einer H2 an (kein Fließtext davor),
+    ist das die EINZIGE H2 im ganzen Inhalt und wurde der Seitentitel nur aus dem Dateinamen
+    abgeleitet, wird die H2 stattdessen zum Seitentitel befördert – statt "Kapitel 1 ..." als
+    Titel UND "Lektion 1 – ..." als erste Überschrift redundant untereinander zu zeigen.
+
+    Auf mehrere H2 beschränkt sich das bewusst NICHT: dort ist die erste Überschrift meist ein
+    eigenständiger erster Abschnitt (z. B. "Grundbegriffe der Statistik") und keine Wiederholung
+    des Kapiteltitels – die würde sonst fälschlich aus dem Text entfernt.
+    """
+    if title != fallback_title:
+        return title, content_html
+    m = LEADING_H2_RE.match(content_html)
+    if not m:
+        return title, content_html
+    if "<h2" in content_html[m.end():]:
+        return title, content_html
+    promoted = re.sub(r'<[^>]+>', '', m.group(1)).strip()
+    if not promoted:
+        return title, content_html
+    return promoted, content_html[m.end():]
+
+
 def render_summary_html(md_text: str, source_names: list) -> str:
-    """Rendert eine Zusammenfassung als eigenständige HTML-Datei mit drei Design-Varianten.
+    """Rendert eine Zusammenfassung als eigenständige, handgemacht wirkende HTML-Datei.
 
     Rein lokal (kein KI-Aufruf): der Inhalt kommt unverändert aus dem bereits
-    gespeicherten Markdown, nur die Optik ändert sich zwischen den Tabs.
+    gespeicherten Markdown, nur die Optik wird ergänzt.
     """
     fallback_title = prettify_stem(Path(source_names[0]).stem) if source_names else "Zusammenfassung"
     title, body_md = split_title(md_text, fallback_title)
     content_html = markdown_lib.markdown(body_md, extensions=["extra", "sane_lists"])
+    title, content_html = promote_leading_heading(content_html, title, fallback_title)
     content_html = wrap_images_as_figures(content_html)
+    content_html = wrap_sections_as_notes(content_html)
     source_line = ", ".join(source_names) if source_names else "unbekannt"
     generated_at = datetime.now().strftime("%d.%m.%Y, %H:%M")
 
@@ -497,15 +509,23 @@ def add_library_entry(entry: dict):
     LIBRARY_PATH.write_text(json.dumps(entries, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
-def record_summary(md_path: Path, html_path: Path, pdf_paths):
+def record_summary(md_path: Path, html_path: Path, pdf_paths, detail_level=None, has_images=None,
+                    has_glossary=None):
     label = prettify_stem(pdf_paths[0].stem) if pdf_paths else md_path.stem
-    add_library_entry({
+    entry = {
         "type": "summary",
         "label": label,
         "md_path": str(md_path),
         "html_path": str(html_path),
         "created_at": datetime.now().isoformat(timespec="seconds"),
-    })
+    }
+    if detail_level is not None:
+        entry["detail_level"] = detail_level
+    if has_images is not None:
+        entry["has_images"] = has_images
+    if has_glossary is not None:
+        entry["has_glossary"] = has_glossary
+    add_library_entry(entry)
     return label
 
 
@@ -607,9 +627,11 @@ def prompt_and_wait(prompt: str, kind: str, parse_fn=lambda r: r):
 
 def cmd_summary(args):
     pdf_paths = [Path(p) for p in args.pdfs]
-    content, image_pages = build_content(pdf_paths)
+    content, image_pages = build_content(pdf_paths, extract_images=args.images)
     captions = collect_all_captions(image_pages)
-    response = prompt_and_wait(build_summary_prompt(content, captions), "Zusammenfassung")
+    prompt = build_summary_prompt(content, captions, detail_level=args.detail,
+                                   include_glossary=args.glossar)
+    response = prompt_and_wait(prompt, "Zusammenfassung")
 
     out_path = Path(args.out)
     saved_images = save_chapter_images(image_pages, out_path.parent / f"{out_path.stem}_bilder")
@@ -628,7 +650,8 @@ def cmd_summary(args):
     html_path = out_path.with_suffix(".html")
     html_path.write_text(render_summary_html(full_md, [p.name for p in pdf_paths]), encoding="utf-8")
     open_in_browser(html_path)
-    record_summary(out_path, html_path, pdf_paths)
+    record_summary(out_path, html_path, pdf_paths, detail_level=args.detail,
+                    has_images=any_images_found(image_pages), has_glossary=args.glossar)
 
     print(f"Zusammenfassung gespeichert: {out_path}")
     if saved_images:
@@ -704,6 +727,14 @@ def main():
     p_summary = sub.add_parser("summary", help="Wiedereinstiegs-Zusammenfassung erzeugen")
     p_summary.add_argument("pdfs", nargs="+", help="Ein oder mehrere Kapitel-PDFs")
     p_summary.add_argument("--out", default="zusammenfassung.md", help="Ausgabedatei (Markdown)")
+    p_summary.add_argument("--detail", choices=["kurz", "ausfuehrlich"], default="ausfuehrlich",
+                            help="Detailgrad der Zusammenfassung")
+    p_summary.add_argument("--images", dest="images", action="store_true", default=True,
+                            help="Abbildungen aus dem PDF extrahieren und einbetten (Standard)")
+    p_summary.add_argument("--no-images", dest="images", action="store_false",
+                            help="Keine Abbildungen extrahieren/einbetten")
+    p_summary.add_argument("--glossar", action="store_true", default=False,
+                            help="Zusätzlichen Glossar-Abschnitt anfordern")
     p_summary.set_defaults(func=cmd_summary)
 
     p_cards = sub.add_parser("flashcards", help="Anki-Karteikarten erzeugen")

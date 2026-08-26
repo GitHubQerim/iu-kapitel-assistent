@@ -15,12 +15,18 @@ python3 -m pip install -r requirements.txt
 ## Nutzung
 
 ```bash
-# Zusammenfassung (Markdown, inkl. Bildern aus dem Kapitel)
+# Zusammenfassung (Markdown + HTML, inkl. Bildern aus dem Kapitel)
 python3 kapitel_assistent.py summary kapitel_1_einfuehrung.pdf --out zusammenfassung.md
+
+# Kurz statt ausführlich, ohne Bilder, mit zusätzlichem Glossar-Abschnitt
+python3 kapitel_assistent.py summary kapitel_1_einfuehrung.pdf --out zusammenfassung.md \
+  --detail kurz --no-images --glossar
 
 # Anki-Karteikarten (.apkg, inkl. Bild-Karten für Diagramme/Grafiken)
 python3 kapitel_assistent.py flashcards kapitel_1_einfuehrung.pdf --out karteikarten.apkg
 ```
+
+Bei der Zusammenfassung lässt sich der Detailgrad steuern (`--detail kurz|ausfuehrlich`, Standard: ausführlich), ob Abbildungen aus dem PDF extrahiert werden sollen (`--images`/`--no-images`, Standard: an) und ob am Ende ein zusätzlicher Glossar-Abschnitt mit Fachbegriffs-Erklärungen angefordert wird (`--glossar`). Jede Zusammenfassung endet außerdem automatisch mit einer "Prüfungs-Merkliste in Kürze" als eigener, beim Drucken auf einer neuen Seite beginnender Abschnitt.
 
 Ablauf: Prompt wird automatisch in die Zwischenablage kopiert → in ein KI-Chat-Tool einfügen → Antwort kopieren → im Terminal Enter drücken. Das Tool liest die Antwort aus der Zwischenablage und baut daraus die Ausgabedatei.
 
@@ -34,7 +40,7 @@ Falls die Antwort aus dem Chat-Tool kein valides JSON ist (z. B. weil ein Codebl
 python3 gui.py
 ```
 
-Natives Fenster (via [pywebview](https://pywebview.flowrl.com/), Oberfläche in `ui.html`) statt Pfade abzutippen: ein oder mehrere Kapitel-PDFs per Datei-Dialog wählen, Modus (Zusammenfassung/Karteikarten) umschalten, Ausgabedatei wählen, dann "Prompt kopieren" → in ein Chat-Tool einfügen → "Antwort einlesen" klicken. Im Karteikarten-Modus erscheint zusätzlich ein Deck-Name-Feld (vorbelegt mit `Modulcode::Kapitelname`), damit sich die Decks in Anki sauber nach Modul/Kapitel verschachteln lassen. Der (i)-Button oben rechts zeigt den Ablauf als Erinnerung. Bei einer fehlerhaften Antwort einfach im Chat-Tool korrigieren und erneut auf "Antwort einlesen" klicken; nach Erfolg öffnet "Im Finder zeigen" die fertige Datei direkt im Finder.
+Natives Fenster (via [pywebview](https://pywebview.flowrl.com/), Oberfläche in `ui.html`) statt Pfade abzutippen: ein oder mehrere Kapitel-PDFs per Datei-Dialog wählen, Ausgabedatei wählen, Modus (Zusammenfassung/Karteikarten) umschalten, dann "Prompt kopieren" → in ein Chat-Tool einfügen → "Antwort einlesen" klicken. Im Zusammenfassungs-Modus lassen sich zusätzlich Detailgrad (Kurz/Ausführlich) sowie Bilder und Glossar per Chip an- und ausschalten; im Karteikarten-Modus erscheint stattdessen ein Deck-Name-Feld (vorbelegt mit `Modulcode::Kapitelname`), damit sich die Decks in Anki sauber nach Modul/Kapitel verschachteln lassen. Der (i)-Button oben rechts zeigt den Ablauf als Erinnerung. Bei einer fehlerhaften Antwort einfach im Chat-Tool korrigieren und erneut auf "Antwort einlesen" klicken; nach Erfolg öffnet "Im Finder zeigen" die fertige Datei direkt im Finder. Bereits erzeugte Zusammenfassungen/Decks lassen sich unten in der Bibliothek per Klick wieder öffnen oder über "Datei(en) importieren" nachträglich hinzufügen.
 
 ## Lizenz
 

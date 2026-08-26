@@ -6,6 +6,7 @@ from pathlib import Path
 import webview
 
 from kapitel_assistent import (
+    any_images_found,
     build_content,
     build_flashcards_deck,
     build_flashcards_prompt,
@@ -37,7 +38,7 @@ class Api:
     def __init__(self):
         self.window = None
         self.pdf_paths = []
-        self.pending = None  # (pdf_paths, content, image_pages)
+        self.pending = None  # (pdf_paths, content, image_pages, options)
         self.last_prompt = None
         self.last_output_path = None
 
@@ -62,19 +63,25 @@ class Api:
         )
         return path or ""
 
-    def copy_prompt(self, mode):
+    def copy_prompt(self, mode, options=None):
         if not self.pdf_paths:
             return {"ok": False, "error": "Bitte zuerst ein oder mehrere Kapitel-PDFs wählen."}
 
+        options = options or {}
         pdf_paths = [Path(p) for p in self.pdf_paths]
-        content, image_pages = build_content(pdf_paths)
-        self.pending = (pdf_paths, content, image_pages)
+        include_images = options.get("include_images", True)
+        content, image_pages = build_content(pdf_paths, extract_images=include_images)
+        self.pending = (pdf_paths, content, image_pages, options)
         captions = collect_all_captions(image_pages)
 
         if mode == "flashcards":
             prompt = build_flashcards_prompt(content, captions)
         else:
-            prompt = build_summary_prompt(content, captions)
+            prompt = build_summary_prompt(
+                content, captions,
+                detail_level=options.get("detail_level", "ausfuehrlich"),
+                include_glossary=options.get("include_glossary", False),
+            )
         self.last_prompt = prompt
         copy_to_clipboard(prompt)
         return {"ok": True}
@@ -85,7 +92,7 @@ class Api:
         if not out_path_str:
             return {"ok": False, "error": "Bitte eine Ausgabedatei wählen."}
 
-        pdf_paths, content, image_pages = self.pending
+        pdf_paths, content, image_pages, options = self.pending
         response = read_clipboard().strip()
         if not response:
             return {"ok": False, "error": "Zwischenablage ist leer. Antwort im Chat-Tool kopieren und erneut klicken."}
@@ -108,7 +115,7 @@ class Api:
                 name = deck_name or default_deck_name(pdf_paths[0])
                 message, label = self._build_flashcards(response, image_pages, out_path, name)
             else:
-                message, label = self._build_summary(response, image_pages, out_path, pdf_paths)
+                message, label = self._build_summary(response, image_pages, out_path, pdf_paths, options)
         except ValueError as exc:
             return {
                 "ok": False,
@@ -151,7 +158,8 @@ class Api:
             return {"ok": True}
         return {"ok": False, "error": "Datei nicht gefunden (evtl. verschoben oder gelöscht)."}
 
-    def _build_summary(self, response, image_pages, out_path: Path, pdf_paths):
+    def _build_summary(self, response, image_pages, out_path: Path, pdf_paths, options=None):
+        options = options or {}
         saved_images = save_chapter_images(image_pages, out_path.parent / f"{out_path.stem}_bilder")
         full_md, leftover_images = place_images_inline(response, saved_images, out_path.parent)
 
@@ -168,7 +176,12 @@ class Api:
         html_path = out_path.with_suffix(".html")
         html_path.write_text(render_summary_html(full_md, [p.name for p in pdf_paths]), encoding="utf-8")
         open_in_browser(html_path)
-        label = record_summary(out_path, html_path, pdf_paths)
+        label = record_summary(
+            out_path, html_path, pdf_paths,
+            detail_level=options.get("detail_level"),
+            has_images=any_images_found(image_pages),
+            has_glossary=options.get("include_glossary"),
+        )
 
         if saved_images:
             placed = len(saved_images) - len(leftover_images)
