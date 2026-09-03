@@ -4,6 +4,7 @@ import argparse
 import html
 import json
 import re
+import shutil
 import subprocess
 import webbrowser
 from datetime import datetime
@@ -125,8 +126,21 @@ def extract_captions(page_text: str):
     return captions
 
 
+def resolve_pdf_path(path: Path) -> Path:
+    """Findet eine PDF auch dann, wenn organize_chapter_output() sie inzwischen in einen
+    Kapitel-Unterordner verschoben hat (z. B. weil zuerst die Zusammenfassung und danach die
+    Karteikarten für dieselbe PDF-Auswahl erzeugt werden, siehe dort)."""
+    if path.exists():
+        return path
+    matches = sorted(path.parent.glob(f"*/{path.name}")) if path.parent.exists() else []
+    if len(matches) == 1:
+        return matches[0]
+    hint = f" (mehrere Treffer: {[str(m) for m in matches]})" if len(matches) > 1 else ""
+    raise FileNotFoundError(f"PDF nicht gefunden: {path}{hint}")
+
+
 def extract_chapter(pdf_path: Path, extract_images: bool = True):
-    reader = PdfReader(pdf_path)
+    reader = PdfReader(resolve_pdf_path(pdf_path))
     text_parts = []
     image_pages = []
     for i, page in enumerate(reader.pages, start=1):
@@ -256,6 +270,22 @@ def save_chapter_images(all_image_pages, out_dir: Path):
                 out_path.write_bytes(img.data)
                 saved.append((pdf_path, page_num, out_path, caption))
     return saved
+
+
+def organize_chapter_output(out_path: Path, pdf_paths) -> Path:
+    """Legt einen Kapitel-Unterordner an (Name = prettify_stem(out_path.stem)) und verschiebt
+    die Quell-PDFs hinein, damit PDF, Zusammenfassung/Karteikarten, Bilder und HTML-Ansicht
+    eines Kapitels nicht mehr flach im Modulordner verstreut sind.
+
+    Idempotent: eine PDF, die schon im Zielordner liegt, wird nicht erneut verschoben.
+    """
+    folder = out_path.parent / prettify_stem(out_path.stem)
+    folder.mkdir(parents=True, exist_ok=True)
+    for pdf_path in pdf_paths:
+        resolved = resolve_pdf_path(pdf_path)
+        if resolved.parent != folder:
+            shutil.move(str(resolved), str(folder / resolved.name))
+    return folder / out_path.name
 
 
 IMAGE_MARKER_RE = re.compile(r"^\[\[ABBILDUNG:\s*(.+?)\]\]\s*$", re.MULTILINE)
@@ -656,7 +686,7 @@ def cmd_summary(args):
                                    include_glossary=args.glossar)
     response = prompt_and_wait(prompt, "Zusammenfassung")
 
-    out_path = Path(args.out)
+    out_path = organize_chapter_output(Path(args.out), pdf_paths)
     saved_images = save_chapter_images(image_pages, out_path.parent / f"{out_path.stem}_bilder")
     full_md, leftover_images = place_images_inline(response, saved_images, out_path.parent)
 
@@ -728,8 +758,8 @@ def cmd_flashcards(args):
     captions = collect_all_captions(image_pages)
     cards = prompt_and_wait(build_flashcards_prompt(content, captions), "Karteikarten", parse_flashcards)
 
-    out_path = Path(args.out)
     deck_name = args.deck or pdf_paths[0].parent.name or pdf_paths[0].stem
+    out_path = organize_chapter_output(Path(args.out), pdf_paths)
     total, with_image, extra_image_cards = build_flashcards_deck(cards, image_pages, out_path, deck_name)
     record_flashcards(out_path, deck_name)
 
