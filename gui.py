@@ -17,6 +17,7 @@ from kapitel_assistent import (
     is_unchanged_prompt,
     load_library,
     open_in_browser,
+    organize_chapter_output,
     parse_flashcards,
     place_images_inline,
     read_clipboard,
@@ -113,7 +114,7 @@ class Api:
         try:
             if mode == "flashcards":
                 name = deck_name or default_deck_name(pdf_paths[0])
-                message, label = self._build_flashcards(response, image_pages, out_path, name)
+                message, label = self._build_flashcards(response, image_pages, out_path, name, pdf_paths)
             else:
                 message, label = self._build_summary(response, image_pages, out_path, pdf_paths, options)
         except ValueError as exc:
@@ -160,6 +161,7 @@ class Api:
 
     def _build_summary(self, response, image_pages, out_path: Path, pdf_paths, options=None):
         options = options or {}
+        out_path = organize_chapter_output(out_path, pdf_paths)
         saved_images = save_chapter_images(image_pages, out_path.parent / f"{out_path.stem}_bilder")
         full_md, leftover_images = place_images_inline(response, saved_images, out_path.parent)
 
@@ -191,8 +193,9 @@ class Api:
             message = "Zusammenfassung gespeichert. HTML-Ansicht geöffnet."
         return message, label
 
-    def _build_flashcards(self, response, image_pages, out_path: Path, deck_name: str):
+    def _build_flashcards(self, response, image_pages, out_path: Path, deck_name: str, pdf_paths):
         cards = parse_flashcards(response)
+        out_path = organize_chapter_output(out_path, pdf_paths)
         total, with_image, extra_image_cards = build_flashcards_deck(cards, image_pages, out_path, deck_name)
         record_flashcards(out_path, deck_name)
         message = f"{total} Karteikarte(n) ({with_image} mit Bild) + {extra_image_cards} zusätzliche Bild-Karte(n)."

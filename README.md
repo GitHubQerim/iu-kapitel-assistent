@@ -34,6 +34,8 @@ Mehrere PDFs als Input sind möglich, um Kapitel aus verschiedenen Quellen zu ei
 
 Falls die Antwort aus dem Chat-Tool kein valides JSON ist (z. B. weil ein Codeblock oder ein einleitender Satz mitkopiert wurde), bricht der Befehl nicht ab: der Fehler wird angezeigt, der Prompt bleibt in der Zwischenablage, und man kann die Antwort korrigieren und einfach erneut Enter drücken.
 
+Damit bei mehreren Kapiteln nichts flach im Modulordner verstreut liegt, wird beim Speichern automatisch ein nach der Ausgabedatei benannter Unterordner angelegt und die Quell-PDF(s) hineinverschoben — Zusammenfassung/Deck, Bilder und PDF landen so gemeinsam an einem Ort.
+
 ### GUI
 
 ```bash

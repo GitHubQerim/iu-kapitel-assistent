@@ -4,6 +4,7 @@ import argparse
 import html
 import json
 import re
+import shutil
 import subprocess
 import webbrowser
 from datetime import datetime
@@ -125,8 +126,21 @@ def extract_captions(page_text: str):
     return captions
 
 
+def resolve_pdf_path(path: Path) -> Path:
+    """Findet eine PDF auch dann, wenn organize_chapter_output() sie inzwischen in einen
+    Kapitel-Unterordner verschoben hat (z. B. weil zuerst die Zusammenfassung und danach die
+    Karteikarten für dieselbe PDF-Auswahl erzeugt werden, siehe dort)."""
+    if path.exists():
+        return path
+    matches = sorted(path.parent.glob(f"*/{path.name}")) if path.parent.exists() else []
+    if len(matches) == 1:
+        return matches[0]
+    hint = f" (mehrere Treffer: {[str(m) for m in matches]})" if len(matches) > 1 else ""
+    raise FileNotFoundError(f"PDF nicht gefunden: {path}{hint}")
+
+
 def extract_chapter(pdf_path: Path, extract_images: bool = True):
-    reader = PdfReader(pdf_path)
+    reader = PdfReader(resolve_pdf_path(pdf_path))
     text_parts = []
     image_pages = []
     for i, page in enumerate(reader.pages, start=1):
@@ -166,6 +180,7 @@ def any_images_found(all_image_pages):
 
 
 ABB_NUM_RE = re.compile(r"(?:Abbildung|Figure)\s+(\d+)")
+CAPTION_PREFIX_RE = re.compile(r"^(?:Abbildung|Figure)\s+\d+[:.]\s*")
 
 
 def caption_key(text):
@@ -175,35 +190,64 @@ def caption_key(text):
     return match.group(1) if match else text.strip()
 
 
+def caption_text_key(text):
+    """Normalisierter Beschreibungstext ohne 'Abbildung N:'-Präfix, als Fallback-Key.
+
+    Manche KIs kopieren beim Referenzieren einer Abbildung nur die Beschreibung, nicht die
+    vorangestellte Nummer ("Abbildung 1: "). Dann liefert caption_key() für das Original (Key
+    "1") und den KI-Text (Key "Informationen, Daten und Signale") unterschiedliche Werte, das
+    Matching schlägt fehl. Dieser Key vergleicht stattdessen die Beschreibung selbst.
+    """
+    if not text:
+        return None
+    stripped = CAPTION_PREFIX_RE.sub("", text).strip()
+    normalized = re.sub(r"\s+", " ", stripped).lower()
+    return normalized or None
+
+
+def _build_image_pool(saved_images):
+    return [{"entry": entry, "caption": entry[3], "used": False} for entry in saved_images]
+
+
+def _pop_matching_image(pool, raw_caption):
+    """Sucht im Bilder-Pool zuerst über die Abbildungsnummer, dann über den Beschreibungstext."""
+    key = caption_key(raw_caption)
+    if key is not None:
+        for item in pool:
+            if not item["used"] and caption_key(item["caption"]) == key:
+                item["used"] = True
+                return item["entry"]
+    text_key = caption_text_key(raw_caption)
+    if text_key is not None:
+        for item in pool:
+            if not item["used"] and caption_text_key(item["caption"]) == text_key:
+                item["used"] = True
+                return item["entry"]
+    return None
+
+
 def attach_images_to_cards(cards, saved_images):
-    """Hängt Bilder an die passende KI-generierte Karte an (Matching über die Abbildungsnummer).
+    """Hängt Bilder an die passende KI-generierte Karte an (Matching über die Abbildungsnummer,
+    mit Fallback auf den Beschreibungstext, siehe caption_text_key()).
 
     Gibt die Bilder zurück, die keiner Karte zugeordnet werden konnten (z. B. weil die KI
     keine Frage dazu erstellt hat, oder weil sich für das Bild gar keine Bildunterschrift
     zuordnen ließ) sowie die Pfade der bereits eingebetteten Bilder.
     """
-    by_key = {}
-    unkeyed = []
-    for entry in saved_images:
-        _, _, _, caption = entry
-        key = caption_key(caption)
-        if key is not None:
-            by_key.setdefault(key, []).append(entry)
-        else:
-            unkeyed.append(entry)
+    pool = _build_image_pool(saved_images)
 
     embedded_paths = []
     for card in cards:
         cap = card.get("image_caption")
         if not cap:
             continue
-        matches = by_key.get(caption_key(cap))
-        if matches:
-            _, _, img_path, _ = matches.pop(0)
+        match = _pop_matching_image(pool, cap)
+        if match:
+            _, _, img_path, _ = match
             card["back"] = f'{card["back"]}<br><img src="{img_path.name}">'
             embedded_paths.append(img_path)
 
-    leftover = [entry for entries in by_key.values() for entry in entries] + unkeyed
+    leftover = [item["entry"] for item in pool if not item["used"]]
     return leftover, embedded_paths
 
 
@@ -228,32 +272,41 @@ def save_chapter_images(all_image_pages, out_dir: Path):
     return saved
 
 
+def organize_chapter_output(out_path: Path, pdf_paths) -> Path:
+    """Legt einen Kapitel-Unterordner an (Name = prettify_stem(out_path.stem)) und verschiebt
+    die Quell-PDFs hinein, damit PDF, Zusammenfassung/Karteikarten, Bilder und HTML-Ansicht
+    eines Kapitels nicht mehr flach im Modulordner verstreut sind.
+
+    Idempotent: eine PDF, die schon im Zielordner liegt, wird nicht erneut verschoben.
+    """
+    folder = out_path.parent / prettify_stem(out_path.stem)
+    folder.mkdir(parents=True, exist_ok=True)
+    for pdf_path in pdf_paths:
+        resolved = resolve_pdf_path(pdf_path)
+        if resolved.parent != folder:
+            shutil.move(str(resolved), str(folder / resolved.name))
+    return folder / out_path.name
+
+
 IMAGE_MARKER_RE = re.compile(r"^\[\[ABBILDUNG:\s*(.+?)\]\]\s*$", re.MULTILINE)
 
 
 def place_images_inline(md_text: str, saved_images, out_dir: Path):
     """Ersetzt [[ABBILDUNG: ...]]-Marker der KI durch das passende Bild an genau dieser Stelle.
 
-    Matching läuft wie bei den Karteikarten über caption_key() (Abbildungsnummer), damit kleine
-    Abweichungen im von der KI zurückgegebenen Bildunterschriften-Text nicht zum Scheitern führen.
+    Matching läuft wie bei den Karteikarten über caption_key() (Abbildungsnummer) mit Fallback
+    auf caption_text_key() (Beschreibungstext), damit sowohl kleine Abweichungen als auch ein
+    von der KI weggelassenes "Abbildung N:"-Präfix nicht zum Scheitern führen.
     Bilder, die die KI nicht referenziert hat, werden als 'übrig' zurückgegeben statt verworfen.
     Das gilt auch für Bilder, denen sich gar keine Bildunterschrift zuordnen ließ.
     """
-    by_key = {}
-    unkeyed = []
-    for entry in saved_images:
-        _, _, _, caption = entry
-        key = caption_key(caption)
-        if key is not None:
-            by_key.setdefault(key, []).append(entry)
-        else:
-            unkeyed.append(entry)
+    pool = _build_image_pool(saved_images)
 
     def repl(m):
-        matches = by_key.get(caption_key(m.group(1)))
-        if not matches:
+        match = _pop_matching_image(pool, m.group(1))
+        if not match:
             return ""
-        pdf_path, page_num, img_path, caption = matches.pop(0)
+        pdf_path, page_num, img_path, caption = match
         rel = img_path.relative_to(out_dir)
         label = caption or f"{pdf_path.stem} Seite {page_num}"
         # Leerzeilen erzwingen: die KI setzt den Marker zwar auf eine eigene Zeile,
@@ -263,7 +316,7 @@ def place_images_inline(md_text: str, saved_images, out_dir: Path):
         return f"\n\n![{label}]({rel})\n\n"
 
     placed_md = IMAGE_MARKER_RE.sub(repl, md_text)
-    leftover = [entry for entries in by_key.values() for entry in entries] + unkeyed
+    leftover = [item["entry"] for item in pool if not item["used"]]
     return placed_md, leftover
 
 
@@ -633,7 +686,7 @@ def cmd_summary(args):
                                    include_glossary=args.glossar)
     response = prompt_and_wait(prompt, "Zusammenfassung")
 
-    out_path = Path(args.out)
+    out_path = organize_chapter_output(Path(args.out), pdf_paths)
     saved_images = save_chapter_images(image_pages, out_path.parent / f"{out_path.stem}_bilder")
     full_md, leftover_images = place_images_inline(response, saved_images, out_path.parent)
 
@@ -705,8 +758,8 @@ def cmd_flashcards(args):
     captions = collect_all_captions(image_pages)
     cards = prompt_and_wait(build_flashcards_prompt(content, captions), "Karteikarten", parse_flashcards)
 
-    out_path = Path(args.out)
     deck_name = args.deck or pdf_paths[0].parent.name or pdf_paths[0].stem
+    out_path = organize_chapter_output(Path(args.out), pdf_paths)
     total, with_image, extra_image_cards = build_flashcards_deck(cards, image_pages, out_path, deck_name)
     record_flashcards(out_path, deck_name)
 
