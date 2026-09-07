@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Lernblatt · Lektion 1 · Begriffsbestimmungen und Hintergründe</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;600;700&family=Kalam:wght@300;400;700&family=Permanent+Marker&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#221e33; --ink2:#4a4466; --mute:#7d77a0;
+  --lav:#c8b6ff; --lav2:#ebe5ff; --lav3:#f5f2ff;
+  --yel:#fff08f; --yel2:#fffbd6;
+  --ora:#ffcf99; --ora2:#fff0dd;
+  --teal:#a9e3d9; --teal2:#e6f7f3;
+  --pink:#ffc2d6;
+  --paper:#fdfcf8;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:#d9d5e6}
+body{font-family:'Kalam','Caveat','Comic Sans MS',cursive;color:var(--ink);font-size:9.6pt;line-height:1.25;font-weight:400}
+@page{size:A3 landscape;margin:0}
+@media print{html,body{background:#fff}section.page{margin:0;box-shadow:none;height:297mm}section.page+section.page{break-before:page}}
+.page{
+  position:relative;width:420mm;height:297mm;margin:10mm auto;padding:8mm 9mm 11mm;display:flex;flex-direction:column;
+  background:var(--paper);
+  background-image:radial-gradient(circle,#cfc8e6 0.55px,transparent 0.7px);
+  background-size:5mm 5mm;
+  box-shadow:0 4mm 12mm rgba(40,30,80,.25);
+  overflow:hidden;
+}
+/* header */
+.head{display:flex;align-items:flex-end;justify-content:space-between;gap:8mm;margin-bottom:3mm}
+.title{font-family:'Permanent Marker',cursive;font-size:25pt;line-height:1;letter-spacing:.5px;color:var(--ink);position:relative;display:inline-block;padding:0 2mm}
+.title::after{content:"";position:absolute;left:0;right:0;bottom:-1.5mm;height:5mm;background:var(--lav);z-index:-1;transform:rotate(-.4deg);border-radius:3px}
+.kicker{font-family:'Caveat',cursive;font-size:14pt;font-weight:600;color:var(--ink2);margin-bottom:1mm}
+.sticky{font-family:'Caveat',cursive;font-size:12.5pt;line-height:1.15;background:var(--yel);padding:3mm 4mm;width:96mm;transform:rotate(1.3deg);box-shadow:2px 3px 6px rgba(0,0,0,.18);color:var(--ink)}
+.sticky b{font-size:13.5pt}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:0 6mm;flex:1;min-height:0}
+.col{display:flex;flex-direction:column;gap:2mm;min-width:0}
+/* headings */
+h2{font-family:'Permanent Marker',cursive;font-size:14.5pt;font-weight:400;margin:1mm 0 .5mm;line-height:1.1;letter-spacing:.3px}
+h2 .p{font-family:'Caveat';font-size:11pt;font-weight:600;color:var(--mute);letter-spacing:0;margin-left:2mm}
+h3{font-family:'Caveat',cursive;font-size:14pt;font-weight:700;margin:.5mm 0 .2mm;line-height:1.05;text-decoration:underline;text-decoration-color:var(--lav);text-decoration-thickness:3px;text-underline-offset:2px}
+.p{font-family:'Caveat',cursive;font-weight:600;font-size:10pt;color:var(--mute);white-space:nowrap}
+/* lists */
+ul{margin:0;padding-left:4.2mm}li{margin:0 0 .35mm}li::marker{color:var(--ink2)}
+.tight li{margin:0}
+.arrow-list{list-style:none;padding-left:0}
+.arrow-list li{padding-left:5mm;position:relative}
+.arrow-list li::before{content:"↳";position:absolute;left:.3mm;top:-.2mm;font-family:'Caveat';font-weight:700;font-size:12pt;color:var(--ink2)}
+/* boxes */
+.box{position:relative;padding:2.2mm 3mm 2.4mm;background:transparent}
+.box::before{content:"";position:absolute;inset:0;border:1.6px solid var(--ink);border-radius:255px 15px 225px 15px/15px 225px 15px 255px;pointer-events:none;filter:url(#wob)}
+.box.r2::before{border-radius:18px 225px 20px 255px/255px 20px 225px 18px}
+.box.lav{background:var(--lav3)} .box.yel{background:var(--yel2)} .box.ora{background:var(--ora2)} .box.teal{background:var(--teal2)}
+.label{position:absolute;top:-3.2mm;left:4mm;background:var(--paper);padding:0 1.5mm;font-family:'Caveat';font-weight:700;font-size:12pt;color:var(--ink2)}
+.box.ora .label{background:var(--ora)} .box.yel .label{background:var(--yel)} .box.lav .label{background:var(--lav)} .box.teal .label{background:var(--teal)}
+.mt{margin-top:2.2mm}
+/* marker highlights */
+.hl,.hy,.ho,.ht{padding:0 .28em;border-radius:.35em .2em .4em .25em;box-decoration-break:clone;-webkit-box-decoration-break:clone}
+.hl{background:linear-gradient(100deg,rgba(200,182,255,.15) 0%,rgba(200,182,255,.95) 5%,rgba(200,182,255,.8) 90%,rgba(200,182,255,.2) 100%)}
+.hy{background:linear-gradient(100deg,rgba(255,240,143,.2) 0%,rgba(255,240,143,.98) 6%,rgba(255,240,143,.85) 92%,rgba(255,240,143,.2) 100%)}
+.ho{background:linear-gradient(100deg,rgba(255,207,153,.2),rgba(255,207,153,.95) 6%,rgba(255,207,153,.85) 92%,rgba(255,207,153,.2))}
+.ht{background:linear-gradient(100deg,rgba(169,227,217,.2),rgba(169,227,217,.95) 6%,rgba(169,227,217,.85) 92%,rgba(169,227,217,.2))}
+b{font-weight:700} .def{font-family:'Caveat';font-weight:700;font-size:12.5pt}
+.cv{font-family:'Caveat';font-weight:600;font-size:12pt}
+.small{font-size:8.7pt;line-height:1.2}
+.mute{color:var(--mute)}
+.num{display:inline-block;width:5mm;height:5mm;line-height:4.6mm;text-align:center;border:1.5px solid var(--ink);border-radius:50% 45% 55% 50%/55% 50% 50% 45%;font-family:'Caveat';font-weight:700;font-size:11.5pt;margin-right:1.2mm;background:#fff;vertical-align:-.5mm}
+.num.f{background:var(--lav)}
+.note{font-family:'Caveat';font-size:12pt;font-weight:600;color:var(--ink2);line-height:1.1}
+.wiggle{display:inline-block;transform:rotate(-1.5deg)}
+/* two-col mini table */
+.vs{display:grid;grid-template-columns:1fr 1fr;gap:0 2mm}
+.vs>div{padding:1mm 1.5mm}
+.vs .h{font-family:'Caveat';font-weight:700;font-size:13pt;text-align:center;border-bottom:2px solid var(--ink);margin-bottom:1mm}
+.vs>div:first-child,.vs>div:nth-child(3),.vs>div:nth-child(5){border-right:1.4px dashed var(--ink2)}
+/* svg sketches */
+svg.sk{width:100%;height:auto;display:block;overflow:visible}
+svg.sk.w85{width:88%;margin:0 auto} svg.sk.w75{width:74%;margin:0 auto} svg.sk.w90{width:92%;margin:0 auto}
+svg.sk text{font-family:'Kalam',cursive;fill:var(--ink)}
+svg.sk .st{font-family:'Caveat',cursive;font-weight:700}
+svg.sk .cap{font-family:'Caveat',cursive;font-weight:600;font-size:9px;fill:var(--mute)}
+.stroke{fill:none;stroke:var(--ink);stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.thin{stroke-width:1.1}
+.fl{fill:var(--lav2)} .fy{fill:var(--yel2)} .fo{fill:var(--ora2)} .ft{fill:var(--teal2)} .fla{fill:var(--lav)} .fw{fill:#fff}
+.foot{position:absolute;left:9mm;right:9mm;bottom:4mm;display:flex;justify-content:space-between;font-family:'Caveat';font-size:11pt;font-weight:600;color:var(--mute)}
+.abb{font-family:'Caveat';font-weight:600;font-size:10.5pt;color:var(--mute)}
+.eselsbr{font-family:'Caveat';font-weight:700;font-size:13pt;color:var(--ink);transform:rotate(-1deg);display:inline-block}
+.q{font-family:'Caveat';font-size:12pt;font-weight:600;font-style:normal}
+.tag{display:inline-block;font-family:'Caveat';font-weight:700;font-size:10.5pt;border:1.4px solid var(--ink);border-radius:9px 5px 8px 6px;padding:0 1.6mm;line-height:1.35;background:#fff;margin-right:.5mm}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <filter id="wob" x="-5%" y="-5%" width="110%" height="110%">
+    <feTurbulence type="fractalNoise" baseFrequency="0.018" numOctaves="2" seed="7" result="n"/>
+    <feDisplacementMap in="SourceGraphic" in2="n" scale="2.4" xChannelSelector="R" yChannelSelector="G"/>
+  </filter>
+  <filter id="wob2" x="-5%" y="-5%" width="110%" height="110%">
+    <feTurbulence type="fractalNoise" baseFrequency="0.03" numOctaves="2" seed="3" result="n"/>
+    <feDisplacementMap in="SourceGraphic" in2="n" scale="1.8" xChannelSelector="R" yChannelSelector="G"/>
+  </filter>
+</svg>
+
+<!-- ================= SEITE 1 ================= -->
+<section class="page">
+  <div class="head">
+    <div>
+      <div class="kicker">Datenschutz &amp; IT-Sicherheit · Lektion 1 · Skript S. 11–32</div>
+      <div class="title">BEGRIFFSBESTIMMUNGEN UND HINTERGRÜNDE</div>
+    </div>
+    <div class="sticky"><b>Lernziele</b> — nach der Lektion weiß ich …<br>
+      ① was IT ist &amp; wie sie funktioniert &nbsp;② was Sicherheit vs. Schutz heißt<br>
+      ③ was Datenschutz ist &amp; worauf er fußt &nbsp;④ was IT-Sicherheit ist &amp; wie sie zum Datenschutz steht</div>
+  </div>
+
+  <div class="grid">
+  <!-- ---------- Spalte 1 ---------- -->
+  <div class="col">
+    <h2>1.1 INFORMATIONSTECHNIK (IT) <span class="p">S. 13–14</span></h2>
+    <div>
+      <span class="def">IT</span> = <span class="hy">konkreter Einsatz elektronischer Geräte für Erhebung + Verwendung von Daten</span> durch Menschen oder Maschinen
+      <ul class="tight">
+        <li>hat <b>immer</b> einen Anwendungsbereich in realer ökonom./sozialer Umgebung: Einzelperson, Firma, Abteilung</li>
+        <li>braucht (elektron.) Geräte, meist fest in <b>Arbeitsorganisation</b> eingebunden → orientiert an <b>Geschäftsprozessen</b></li>
+        <li>privat: E-Mail, Chat … · Stichworte: „Industrie 4.0“, „Wirtschaft 4.0“</li>
+      </ul>
+    </div>
+
+    <svg class="sk w75" viewBox="0 0 300 118">
+      <g filter="url(#wob)">
+        <rect class="stroke fla" x="40" y="4" width="220" height="28" rx="6"/>
+        <rect class="stroke fl" x="40" y="46" width="220" height="28" rx="6"/>
+        <rect class="stroke fw" x="40" y="88" width="220" height="28" rx="6"/>
+        <path class="stroke thin" d="M120 33 C121 38,119 42,120 45 M117 40 L120 46 L123 40"/>
+        <path class="stroke thin" d="M180 45 C181 41,179 37,180 34 M177 38 L180 33 L183 38"/>
+        <path class="stroke thin" d="M120 75 C121 80,119 84,120 87 M117 82 L120 88 L123 82"/>
+        <path class="stroke thin" d="M180 87 C181 83,179 79,180 76 M177 80 L180 75 L183 80"/>
+      </g>
+      <text x="150" y="16" text-anchor="middle" class="st" font-size="12">INFORMATIONEN</text>
+      <text x="150" y="27" text-anchor="middle" font-size="7.5">Gegenstände unseres Denkens: Fakten, Konzepte, Anweisungen …</text>
+      <text x="150" y="58" text-anchor="middle" class="st" font-size="12">DATEN</text>
+      <text x="150" y="69" text-anchor="middle" font-size="7.5">formalisierte Darstellung von Informationen (Glyph, Symbol, Code)</text>
+      <text x="150" y="100" text-anchor="middle" class="st" font-size="12">SIGNALE</text>
+      <text x="150" y="111" text-anchor="middle" font-size="7.5">physikal. Darstellung von Daten: Spannung, Strom, Licht, Schall</text>
+      <text x="2" y="62" class="cap">Abb. 1</text>
+    </svg>
+    <div class="small">
+      <b>Daten</b> = formalisierte Darstellung von Sachverhalten/Konzepten/Anweisungen für Übertragung, Speicherung, Verarbeitung ·
+      <b>Information</b> = die <span class="hl">Bedeutung</span>, die den Daten aufgrund von <b>Konventionen</b> beigelegt wird ·
+      <b>Signal</b> = Darstellung von Daten durch räuml./zeitl. Veränderung physikal. Größen
+    </div>
+    <div class="box ora"><span class="label">Klausur-Falle</span>
+      Der Name „<b>Informations</b>technik“ ist eigentlich <span class="ho">irreführend</span>: IT befasst sich gar nicht mit Informationen, sondern mit <b>formalisierten Darstellungen</b> (= Daten)!
+    </div>
+
+    <h3>Informationsverbund <span class="p">(BSI) S. 14</span></h3>
+    <div>= <span class="hy">konkrete Ausprägung der IT</span> = <b>alle technischen + alle organisatorischen</b> Komponenten des Anwendungsbereichs · technische Komponenten = <span class="hl">IT-Infrastruktur</span></div>
+    <div class="vs mt">
+      <div>
+        <div class="h">technisch <span class="abb">Abb. 2</span></div>
+        <div class="small">
+          <b>Hardware</b> — Rechengeräte (PC, Tablet, Smartphone, Phablet) · Netzwerkgeräte (Switch, Router) · Peripherie (Tastatur, Drucker, Kamera) · Betriebsgeräte (USV)<br>
+          <b>Software</b> — Firmware · Betriebssystem · Anwendungssoftware/Apps<br>
+          <b>Bauliche Einrichtungen</b> — Räume (Klimatechnik) · Gebäude (Zutrittskontrolle) · Standorte
+        </div>
+      </div>
+      <div>
+        <div class="h">organisatorisch <span class="abb">Abb. 4</span></div>
+        <div class="small">
+          <b>Institution</b> — EU-Verordnungen · Gesetze (Bund, Länder) · Standards (ISO, DIN)<br>
+          <b>Struktur</b> — Geschäftsführung · Betriebsrat · Datenschutzbeauftragter<br>
+          <b>Personal</b> — Mitarbeiter: <b>Anzahl</b> + <b>Qualifikation</b> für Planung, Wartung, Betrieb
+        </div>
+      </div>
+    </div>
+    <div class="note">↳ Aufgabe der Informationssicherheit: <span class="hl">alle</span> diese Komponenten angemessen schützen</div>
+
+    <h3>Boot &amp; UEFI <span class="p">S. 15</span></h3>
+    <svg class="sk w85" viewBox="0 0 300 40">
+      <g filter="url(#wob)">
+        <rect class="stroke fw" x="2" y="8" width="60" height="24" rx="5"/>
+        <rect class="stroke fl" x="92" y="8" width="70" height="24" rx="5"/>
+        <rect class="stroke fw" x="200" y="8" width="96" height="24" rx="5"/>
+        <path class="stroke" d="M63 20 C72 18,80 22,89 20 M83 15 L90 20 L83 25"/>
+        <path class="stroke" d="M163 20 C175 18,185 22,197 20 M191 15 L198 20 L191 25"/>
+      </g>
+      <text x="32" y="24" text-anchor="middle" font-size="9.5">Einschalten</text>
+      <text x="127" y="20" text-anchor="middle" class="st" font-size="11">Firmware</text>
+      <text x="127" y="29" text-anchor="middle" font-size="7">Boot-Vorgang, Initialisierung</text>
+      <text x="248" y="24" text-anchor="middle" font-size="9.5">Betriebssystem startet</text>
+    </svg>
+    <div class="small"><span class="def">UEFI</span> (Unified Extensible Firmware Interface) = Schnittstelle Firmware ↔ OS, <span class="hl">ersetzt BIOS</span> · modular erweiterbar: Netzwerkmodul für Fernwartung, DRM, BIOS-Emulation, Bootloader · <b>Secure Boot</b>: nur <b>ausdrücklich erlaubte</b> Dateien dürfen das OS starten</div>
+    <div class="box yel r2 mt"><span class="label">Merksatz 1.1</span>
+      IT = Geräte + Daten + Anwendungsbereich · Informationsverbund = <b>technisch</b> (Hardware/Software/Bau) + <b>organisatorisch</b> (Institution/Struktur/Personal) · Netz: MAC ↔ IP ↔ Port, TCP zuverlässig / UDP schnell
+    </div>
+  </div>
+
+  <!-- ---------- Spalte 2 ---------- -->
+  <div class="col">
+    <h2>NETZWERKE <span class="p">S. 15–16</span></h2>
+    <div>Netzwerkgeräte unterstützen <span class="num">1</span>lokale Netze <b>einer</b> Technologie (LAN, WLAN, Bluetooth) oder <span class="num">2</span><span class="hl">Netzwerke von Netzwerken</span> → heute fast immer <b>TCP/IP</b></div>
+
+    <h3>LAN = Ethernet (IEEE 802.3), kabelgebunden</h3>
+    <ul class="tight">
+      <li><b>MAC-Adresse</b>: 48 Bit, hexadezimal, z. B. <span class="cv">00-80-41-ae-fd-7e</span> · <span class="hy">ff-ff-ff-ff-ff-ff = Broadcast</span> (an alle)</li>
+      <li>Daten in <b>Rahmen (Frame)</b> mit Sender- + Empfänger-MAC → an <b>alle</b> geschickt, nur benannter Empfänger nutzt ihn</li>
+      <li><b>FCFS</b> (First-Come-First-Served): Medium frei? → senden (ggf. nach zufälliger Verzögerung + erneuter Prüfung) → sendet noch jemand? → abbrechen</li>
+      <li><b>Hub</b>: sternförmig, CAT-Kabel, RJ-45 → gibt <b>stumpf an alle</b> weiter · <b>Switch</b>: wertet Adressen aus → nicht jeder kriegt alles</li>
+    </ul>
+    <div class="small"><b>WLAN</b> (IEEE 802.11) = LAN ohne Kabel · Teilnehmer senden <b>Beacons</b> („ich bin da“) · Ad-hoc-Netz <i>oder</i> Infrastruktur-Netz über <b>Access Point</b> · Norm regelt Frequenzen, Tempo, Senderauswahl, <b>Roaming</b> (Wechsel zu anderem AP) &nbsp;·&nbsp; <b>Bluetooth</b>: urspr. Nahbereich (<b>Piconets</b>), Version 4.x konkurriert mit WLAN</div>
+
+    <h3>TCP/IP-Protokollfamilie <span class="p">S. 16–18</span> <span class="abb">Abb. 3</span></h3>
+    <div class="small">= Netzwerktechnik mit <b>übergeordneter Adressierung</b>, überwindet Grenzen einheitlicher Netze (z. B. Ethernet) · <b>Protokoll</b> = Vereinbarung, die Kommunikationsverhalten <b>syntaktisch + semantisch</b> festlegt</div>
+    <svg class="sk w90" viewBox="0 0 300 150">
+      <g filter="url(#wob)">
+        <rect class="stroke fla" x="2" y="2" width="200" height="24" rx="4"/>
+        <rect class="stroke fl" x="2" y="32" width="200" height="24" rx="4"/>
+        <rect class="stroke fy" x="2" y="62" width="200" height="24" rx="4"/>
+        <rect class="stroke fo" x="2" y="92" width="200" height="24" rx="4"/>
+        <rect class="stroke fw" x="2" y="122" width="200" height="24" rx="4"/>
+        <path class="stroke thin" d="M100 26 L100 32 M97 28 L100 32 L103 28 M100 56 L100 62 M97 58 L100 62 L103 58 M100 86 L100 92 M97 88 L100 92 L103 88 M100 116 L100 122 M97 118 L100 122 L103 118"/>
+        <path class="stroke thin" d="M205 14 C215 12,222 16,232 14"/>
+      </g>
+      <text x="8" y="11" class="st" font-size="9">Anwendungsschicht</text>
+      <text x="8" y="22" font-size="7.5">FTP · HTTP · SMTP · DNS · VoIP …</text>
+      <text x="8" y="41" class="st" font-size="9">Transportschicht</text>
+      <text x="8" y="52" font-size="7.5">TCP (zuverlässig) | UDP (verbindungslos)</text>
+      <text x="8" y="71" class="st" font-size="9">Internetschicht</text>
+      <text x="8" y="82" font-size="7.5">IP — Router bewegen Datagramme</text>
+      <text x="8" y="101" class="st" font-size="9">Netzzugangsschicht</text>
+      <text x="8" y="112" font-size="7.5">Ethernet · Token Bus · 802.11 · Bluetooth · DSL</text>
+      <text x="8" y="131" class="st" font-size="9">physikalisch</text>
+      <text x="8" y="142" font-size="7.5">Kupferkabel · Funk · Lichtwellenleiter</text>
+      <text x="208" y="10" font-size="7" class="cap">Verpackung ↓</text>
+      <text x="208" y="34" font-size="7">Paket = Ports + Daten</text>
+      <text x="208" y="64" font-size="7">Datagramm = IP-Adr.</text><text x="208" y="72" font-size="7">+ Ports + Daten</text>
+      <text x="208" y="94" font-size="7">Frame = MAC + IP</text><text x="208" y="102" font-size="7">+ Ports + Daten</text>
+    </svg>
+    <ul class="tight small">
+      <li><b>IP-Adresse</b> (v4): 32 Bit → 4 Zahlen 0–255, z. B. <span class="cv">195.247.86.5</span> · <b>DNS</b> übersetzt Name → IP (www.iu.de → 78.137.97.49), Tabelle liegt auf <b>DNS-Servern</b>; jeder Verbindungswunsch: erst DNS, dann Router</li>
+      <li><b>Router</b> = fundamentale Bausteine, realisieren <b>IP</b>: schieben <b>Datagramme</b> per Netzadresse durch Zwischennetze — <span class="hl">verbindungslos</span>: Weg zu komplex? → Datagramm <b>vernichtet</b>, Empfänger erfährt nichts, Sender nur „halbherzig“ informiert</li>
+      <li>Router sehen IP + Ports → oft zugleich <b>Firewall</b> (Regeln sperren Ports/IPs) · Wort urspr. = Trennwand gegen Feuer (Auto)</li>
+    </ul>
+    <div class="vs">
+      <div><div class="h">TCP</div><div class="small">zuverlässig, <b>verbindungsorientiert</b> · Sender + Empfänger über <b>Ports</b> fest gekoppelt, vorher vereinbart · verlorene Datagramme werden <b>erneut</b> geschickt</div></div>
+      <div><div class="h">UDP</div><div class="small"><b>verbindungslos</b>, keine Vollständigkeitsgarantie · Bild/Ton, <b>VoIP</b>: Verbindungsauf-/abbau muss fehlerfrei, Sprachpakete dürfen verloren gehen (Tempo &gt; Vollständigkeit)</div></div>
+    </div>
+    <div class="small"><b>Anwendungsprotokolle</b>: <b>FTP</b> Dateien · <b>HTTP</b> Webseiten · <b>SMTP</b> E-Mail an Server · <b>DNS</b> Name → IP · <b>VoIP</b> Telefonie &nbsp;→ urspr. ohne Sicherheit gebaut ⇒ gesicherte Varianten: <span class="ht">FTPS/SFTP · HTTPS · DNSSEC · DNS over HTTPS</span> („S“ = secure)</div>
+  </div>
+
+  <!-- ---------- Spalte 3 ---------- -->
+  <div class="col">
+    <h2>FALLBEISPIEL: PRAXIS DR. HEILEMACHER <span class="p">S. 19–22</span></h2>
+    <div class="note">zieht sich durchs ganze Skript → Rollen &amp; Kürzel merken! (Terminologie nach KBV 2016)</div>
+    <div class="small"><b>PVS</b> (Praxisverwaltungssystem) = Kernstück, bildet den ganzen Ablauf ab: Patientenakten (Diagnosen, Messwerte, Therapiepläne, Notizen) · Zeit-/Aufgabenplanung · Laborwerte per Internet · Berichte, Bescheinigungen, Rezepte · Abrechnung nach dt. Recht · Leistungsstatistik · Lager der Apotheke</div>
+    <div class="vs mt">
+      <div><span class="tag">PI</span> Praxisinhaber Dr. Heilemacher<br><span class="tag">PP</span> Praxispersonal (Sprechstundenhilfen, Assistenzärzte) → Zugriff aufs PVS = <b>Zugriff auf Patientendaten</b></div>
+      <div><span class="tag">DL</span> IT-Dienstleister: <b>Fernwartung</b> auf S-1 übers Internet (R99)<br><span class="tag">TI</span> Telematik-Infrastruktur für die eGK (elektron. Gesundheitskarte)</div>
+    </div>
+    <svg class="sk" viewBox="0 0 300 178">
+      <g filter="url(#wob)">
+        <path class="stroke ft" d="M112 4 C108 -2,96 2,100 10 C90 8,88 22,100 22 L200 22 C214 22,212 6,202 8 C204 -2,190 -2,190 6 C186 -4,160 -4,158 6 C150 -2,116 -2,112 4 Z"/>
+        <rect class="stroke fw" x="120" y="42" width="60" height="18" rx="4"/>
+        <rect class="stroke fla" x="120" y="82" width="60" height="18" rx="4"/>
+        <rect class="stroke fl" x="8" y="126" width="62" height="20" rx="4"/>
+        <rect class="stroke fl" x="80" y="126" width="62" height="20" rx="4"/>
+        <rect class="stroke fw" x="154" y="126" width="62" height="20" rx="4"/>
+        <rect class="stroke fw" x="228" y="126" width="66" height="20" rx="4"/>
+        <rect class="stroke fw" x="8" y="154" width="62" height="20" rx="4"/>
+        <rect class="stroke fw" x="80" y="154" width="62" height="20" rx="4"/>
+        
+        <rect class="stroke fy" x="8" y="42" width="66" height="30" rx="4"/>
+        <rect class="stroke fw" x="226" y="42" width="66" height="30" rx="4"/>
+        <path class="stroke thin" d="M150 23 L150 41 M150 61 L150 81 M74 57 C90 55,105 54,119 52 M226 57 C210 55,195 54,181 52"/>
+        <path class="stroke thin" d="M150 101 L150 112 M39 125 L39 112 L261 112 L261 125 M111 125 L111 112 M185 125 L185 112"/>
+        <path class="stroke thin" d="M39 147 L39 153 M111 147 L111 153 "/>
+      </g>
+      <text x="150" y="13" text-anchor="middle" font-size="7.5">Internet · KV Krankenversicherung · DL · TI</text>
+      <text x="150" y="19" text-anchor="middle" font-size="6.5" class="cap">TCP/IP über ISP</text>
+      <text x="150" y="53" text-anchor="middle" font-size="6.8">N-1 DSL-Modem &amp; Router</text>
+      <text x="150" y="70" text-anchor="middle" font-size="6.5" class="cap">.100 · R1 · Verbindung zur TI</text>
+      <text x="150" y="94" text-anchor="middle" class="st" font-size="9">ITS-2 Switch (R1)</text>
+      <text x="150" y="109" text-anchor="middle" font-size="6.5" class="cap">Ethernet · RJ-45 · CAT-5E</text>
+      <text x="41" y="52" text-anchor="middle" font-size="7">TK-2 Fax (R1)</text>
+      <text x="41" y="60" text-anchor="middle" font-size="6">.110 · Fax-/Datendienste</text>
+      <text x="41" y="68" text-anchor="middle" font-size="6" class="cap">direkt am Router</text>
+      <text x="259" y="52" text-anchor="middle" font-size="7">TK-1 Telefone ×4</text>
+      <text x="259" y="60" text-anchor="middle" font-size="6">VoIP · .120–123</text>
+      <text x="259" y="68" text-anchor="middle" font-size="6" class="cap">R2, R4, R5, R9</text>
+      <text x="39" y="134" text-anchor="middle" font-size="6.5">S-1 PVS-Server</text><text x="39" y="142" text-anchor="middle" font-size="5.6">.150 · R1 · Win Server 2008</text>
+      <text x="111" y="134" text-anchor="middle" font-size="6.5">S-2 Archiv-Server</text><text x="111" y="142" text-anchor="middle" font-size="5.6">.151 · R1 · tägl. Backup</text>
+      <text x="185" y="134" text-anchor="middle" font-size="6.5">C-1 Clients ×9</text><text x="185" y="142" text-anchor="middle" font-size="5.6">.140–148 · R1–R9 · Win 7</text>
+      <text x="261" y="134" text-anchor="middle" font-size="6.5">C-2 Laptop</text><text x="261" y="142" text-anchor="middle" font-size="5.6">.149 · R10 + R50 (zeitweise)</text>
+      <text x="39" y="162" text-anchor="middle" font-size="6.2">ITS-1 Kartenterminal ×2</text><text x="39" y="170" text-anchor="middle" font-size="5.6">.130–131 · R1, R9</text>
+      <text x="111" y="162" text-anchor="middle" font-size="6.5">ITS-3 Drucker</text><text x="111" y="170" text-anchor="middle" font-size="5.6">.132 · R9 Rezeption</text>
+      <text x="223" y="163" text-anchor="middle" font-size="7" class="cap">alle Adressen: 192.168.0.x /16</text>
+      <text x="223" y="172" text-anchor="middle" font-size="7" class="cap">= „privater“ Nummernbereich</text>
+      <text x="2" y="90" class="cap">Abb. 5</text>
+    </svg>
+    <ul class="tight small">
+      <li>Kartenterminals hängen als <b>eigenständige Geräte</b> direkt am Netz, nicht am PC</li>
+      <li><b>Backup-Kette</b>: täglich automatisch → Archivrechner S-2; wöchentlich <b>manuell</b> Kopien auf externe Datenträger → <b>außer Haus</b> (R50 = Heimbüro des PI) · PP hat <span class="hl">keinen Zugriff</span> auf Archiv + Sicherungen</li>
+      <li>Räume: R1 Serverraum · R2 Arztbüro · R3–8 Behandlung · R9 Rezeption · R10 Teeküche · R50 Heimbüro PI · R99 Büro DL</li>
+    </ul>
+    <div class="box lav"><span class="label">institutionell</span>
+      Berufsordnung · Ärztekammer · Krankenversicherungen · Kassenärztl. Vereinigungen. <b>Schweigepflicht</b> des Personals über alles Anvertraute — <span class="hl">auch über den Tod hinaus</span>: Mitteilungen, Aufzeichnungen, Röntgenbilder, Befunde <b>nie</b> Unbefugten zugänglich.
+    </div>
+    <h3>Randbemerkung: MAC &amp; Hash <span class="p">S. 16</span></h3>
+    <div class="box ora r2 mt"><span class="label">3× MAC — nicht verwechseln!</span>
+      <span class="num f">M</span><b>M</b>edia Access Control → die Adresse oben &nbsp;·&nbsp;
+      <span class="num f">M</span><b>M</b>andatory Access Control → Zugriffsrechte (kommt später) &nbsp;·&nbsp;
+      <span class="num f">M</span><b>M</b>essage Authentication Code → prüft <b>Authentizität + Integrität</b> von Nachrichten
+    </div>
+    <div class="small"><b>Hash-Funktion</b>: Eingabe beliebiger Länge → Ausgabe (Hashwert) <span class="hl">fester, kurzer Länge</span>; dient als <b>Prüfsumme</b>. Bsp.: Quersumme immer wieder bilden → einstellige Zahl → einzelne falsche Ziffer wird erkannt. <b>Kryptografische</b> Hashfunktion zusätzlich: <span class="ho">praktisch nicht umkehrbar</span></div>
+
+    
+  </div>
+  </div>
+  <div class="foot"><span>Lernblatt · Lektion 1 · Seite 1/2</span><span>Seitenangaben = IU-Skript · Skizzen = Nachbau der Abb. 1–5</span></div>
+</section>
+
+<!-- ================= SEITE 2 ================= -->
+<section class="page">
+  <div class="head">
+    <div>
+      <div class="kicker">Datenschutz &amp; IT-Sicherheit · Lektion 1 · Teil 2</div>
+      <div class="title">SICHERHEIT · SCHUTZ · DATENSCHUTZ · IT-SICHERHEIT</div>
+    </div>
+    <div class="sticky" style="transform:rotate(-1.1deg)"><b>Roter Faden</b><br>
+      Sicherheit (Zukunft) → Schutz (Maßnahme) → Persönlichkeitsrecht (3 Sphären) → Datenschutz (Mensch) ↔ IT-Sicherheit (alle Daten) — <b>und wo sie sich beißen</b></div>
+  </div>
+
+  <div class="grid">
+  <!-- ---------- Spalte 1 ---------- -->
+  <div class="col">
+    <h2>1.2 SICHERHEIT &amp; SCHUTZ <span class="p">S. 23–25</span></h2>
+    <div><span class="def">Sicherheit</span> = <span class="hy">Ausmaß der Bestimmtheit + Gewissheit zukünftiger Umstände</span> = <b>Erwartungssicherheit</b>
+      <ul class="tight">
+        <li>auf die <b>Zukunft</b> gerichtet · an den <b>Beobachter</b> gebunden · <b>relativ</b>: gilt nur für Zeithorizont, Umgebung, Bedingungen</li>
+        <li>Mensch hat Konzept der Zukunft, will sie wissen/bestimmen → Umgang = <b>Intuition + Wahrscheinlichkeit</b> → manchmal <b>Risiko</b> eingehen</li>
+        <li>nie <b>absolut</b> (Blitzeinschlag!) → Störungen nur <span class="hl">hinreichend unwahrscheinlich</span> (Vergleich: Lottogewinn) → es geht immer um den <b>Umgang mit Restgefahren</b></li>
+      </ul>
+    </div>
+    <div class="vs">
+      <div><div class="h">Security</div><div class="small">Sicherheit <b>gegen Einwirkungen</b> → „<b>Immunität</b>“ · meist <b>Voraussetzung</b> für Safety → <b>Vorrang</b> · Fokus des Skripts</div></div>
+      <div><div class="h">Safety</div><div class="small">Sicherheit <b>der Auswirkungen</b> → „<b>Isolation</b>“ · z. B. Normen für Software in der Luftfahrt</div></div>
+    </div>
+    <div class="note">↳ im Deutschen beides nur „Sicherheit“ ⇒ <span class="wiggle">Sicherheit ≠ Sicherheit</span> (Security != Safety)</div>
+
+    <div><span class="def">Schutz</span> = <span class="hy">alles, was ausdrücklich der Erhöhung der Sicherheit dient</span> · fördert Bestimmtheit/Gewissheit · Maßnahmen sind per Definition <b>präventiv</b> (zukunftsgerichtet): <b>psychologisch · technisch · organisatorisch</b></div>
+    <svg class="sk w75" viewBox="0 0 300 118">
+      <g filter="url(#wob)">
+        <rect class="stroke fla" x="105" y="4" width="90" height="24" rx="6"/>
+        <rect class="stroke fl" x="196" y="82" width="98" height="24" rx="6"/>
+        <rect class="stroke fl" x="6" y="82" width="98" height="24" rx="6"/>
+        <path class="stroke" d="M198 20 C232 34,252 52,252 78 M246 68 L252 80 L258 70"/>
+        <path class="stroke" d="M194 96 C160 108,140 108,108 96 M116 92 L106 96 L116 102"/>
+        <path class="stroke" d="M48 80 C48 52,68 34,102 20 M92 20 L104 18 L98 30"/>
+      </g>
+      <text x="150" y="19" text-anchor="middle" class="st" font-size="12">Prävention</text>
+      <text x="245" y="92" text-anchor="middle" class="st" font-size="11">Detektion</text>
+      <text x="245" y="102" text-anchor="middle" font-size="6.8">Angriffe schnell erkennen</text>
+      <text x="55" y="92" text-anchor="middle" class="st" font-size="11">Reaktion</text>
+      <text x="55" y="102" text-anchor="middle" font-size="6.8">Korrektur + Sanktion (Straf-/Zivilrecht)</text>
+      <text x="150" y="62" text-anchor="middle" class="cap" font-size="9">Sicherheitszyklus · Abb. 6</text>
+      <text x="150" y="46" text-anchor="middle" font-size="7.5">Prävention versagt nicht selten →</text>
+    </svg>
+    
+    <h3>Persönliche Schutzbereiche <span class="p">S. 25</span> <span class="abb">Abb. 7</span></h3>
+    <div class="small">Menschen schließen sich zu Gemeinschaften zusammen → erwarten <b>garantierten Schutz der Person</b>, abgestuft nach Sphären:</div>
+    <div style="display:flex;gap:2mm;align-items:center">
+      <svg class="sk" viewBox="0 0 150 150" style="width:40mm;flex:none">
+        <g filter="url(#wob)">
+          <circle class="stroke fl" cx="75" cy="75" r="70"/>
+          <circle class="stroke fla" cx="75" cy="88" r="52"/>
+          <circle class="stroke" cx="75" cy="102" r="34" fill="#a998ee"/>
+        </g>
+        <text x="75" y="18" text-anchor="middle" class="st" font-size="10">Individualsphäre</text>
+        <text x="75" y="52" text-anchor="middle" class="st" font-size="10">Privatsphäre</text>
+        <text x="75" y="106" text-anchor="middle" class="st" font-size="10" fill="#fff">Intimsphäre</text>
+      </svg>
+      <div class="small">
+        <b>Intimsphäre</b> — Sexualität, Krankheiten, Gefühle, Gedankenwelt → <span class="hl">möglichst absolut</span> geschützt<br>
+        <b>Privatsphäre</b> — häuslicher Bereich + Bereiche nur für Nahestehende; auch Interaktion mit Partner in der Öffentlichkeit → große Sicherheit, nur <b>sehr restriktive Ausnahmen</b><br>
+        <b>Individualsphäre</b> — frei beobachtbares Leben, öffentl. + berufl. Wirken → trotzdem kein sicherheitsfreier Raum: Sicherheit der <b>Beziehungen zur Umwelt</b>
+      </div>
+    </div>
+    <div class="box yel r2"><span class="label">Rechtsgrundlage</span>
+      <b>Allgemeines Persönlichkeitsrecht</b> (Grundgesetz, Art. 2) = absolutes + umfassendes Recht auf <span class="hy">Achtung und Entfaltung der Persönlichkeit</span> → Anspruch auf Sicherheit in allen drei Sphären
+    </div>
+  </div>
+
+  <!-- ---------- Spalte 2 ---------- -->
+  <div class="col">
+    <h2>1.3 DATENSCHUTZ ALS PERSÖNLICHKEITSRECHT <span class="p">S. 26–27</span></h2>
+    <div class="box ora"><span class="label">Begriffs-Falle</span>
+      „Datenschutz“ müsste eigentlich <i>Schutz von Daten</i> heißen — meint in DE aber den <b>Schutz des Menschen</b> vor seiner Verdatung ⇒ treffender: <span class="ho">„Verdatungsschutz“</span>
+    </div>
+    <svg class="sk" viewBox="0 0 300 92">
+      <g filter="url(#wob)">
+        <path class="stroke" d="M8 40 C80 38,200 42,292 40 M284 34 L294 40 L284 46"/>
+        <circle class="stroke fw" cx="30" cy="40" r="5"/><circle class="stroke fla" cx="105" cy="40" r="6"/><circle class="stroke fw" cx="165" cy="40" r="5"/><circle class="stroke fla" cx="235" cy="40" r="6"/><circle class="stroke fw" cx="272" cy="40" r="5"/>
+      </g>
+      <text x="30" y="26" text-anchor="middle" class="st" font-size="9">1960er</text>
+      <text x="30" y="56" text-anchor="middle" font-size="6.5">Bewusstsein: Weitergabe</text><text x="30" y="64" text-anchor="middle" font-size="6.5">persönl. Daten schadet</text><text x="200" y="90" text-anchor="middle" font-size="6.5" class="cap">1980er: geplante Volkszählung → Unbehagen → Verfassungsbeschwerden</text>
+      <text x="105" y="24" text-anchor="middle" class="st" font-size="9">16.07.1969</text>
+      <text x="105" y="56" text-anchor="middle" font-size="6.5">Mikrozensus-Beschluss</text><text x="105" y="64" text-anchor="middle" font-size="6.5">BVerfG: Staat darf Menschen</text><text x="105" y="72" text-anchor="middle" font-size="6.5">nicht wie eine Sache</text><text x="105" y="80" text-anchor="middle" font-size="6.5">registrieren + katalogisieren</text>
+      <text x="165" y="26" text-anchor="middle" class="st" font-size="9">1970er</text>
+      <text x="165" y="56" text-anchor="middle" font-size="6.5">Hessen + Bund:</text><text x="165" y="64" text-anchor="middle" font-size="6.5">erste DS-Gesetze</text>
+      <text x="235" y="24" text-anchor="middle" class="st" font-size="9">15.12.1983</text>
+      <text x="235" y="56" text-anchor="middle" font-size="6.5">Volkszählungsurteil</text><text x="235" y="64" text-anchor="middle" font-size="6.5">= „Geburtsstunde“ des</text><text x="235" y="72" text-anchor="middle" font-size="6.5">Datenschutzes in DE</text>
+      <text x="275" y="26" text-anchor="middle" class="st" font-size="9">27.02.2008</text>
+      <text x="278" y="80" text-anchor="middle" font-size="6.5">IT-Grundrecht ↓</text>
+    </svg>
+    
+    <h3>Volkszählungsurteil 1983 — 5 Kernaussagen</h3>
+    <ul class="arrow-list small">
+      <li><span class="num f">1</span><b>Recht auf informationelle Selbstbestimmung</b> (Art. 2 Abs. 1 i. V. m. Art. 1 Abs. 1 GG): jeder bestimmt <span class="hl">grundsätzlich selbst über Preisgabe + Verwendung</span> seiner Daten</li>
+      <li><span class="num f">2</span>bei automatisierter Verarbeitung gibt es <span class="hl">kein „belangloses“ Datum</span> — alle persönl. Daten unter GG-Schutz, sensibel oder nicht</li>
+      <li><span class="num f">3</span>Bürger müssen wissen: <b>„wer was wann und bei welcher Gelegenheit“</b> über sie weiß → Aufklärungspflichten · <b>Vorrang der Selbstauskunft</b> (Grundsatz der Direkterhebung: erst den Bürger fragen, dann Dritte)</li>
+      <li><span class="num f">4</span>Einschränkungen nur mit <b>ausdrücklicher gesetzlicher Grundlage</b> — so konkret wie möglich + Aufklärungs-, Auskunfts-, Löschungspflichten</li>
+      <li><span class="num f">5</span><b>strenge Zweckbindung</b>: nur für konkreten Zweck; Sammeln <span class="ho">„auf Vorrat zu unbestimmten Zwecken“ unzulässig</span></li>
+    </ul>
+    <div class="box yel"><span class="label">Definition</span>
+      <span class="def">Datenschutz</span> = <span class="hy">Schutz natürlicher Personen bei Erhebung + Verwendung von Daten, die sie betreffen</span> — Definition von damals, gilt bis heute
+      <div class="small mute">Schweiz: auch <b>juristische</b> Personen geschützt · Österreich + Dänemark früher auch, seit DSGVO nur eingeschränkt</div>
+    </div>
+    <div class="small">
+      <b>personenbezogene Daten</b> = eindeutig <i>oder zumindest mittelbar</i> einer natürl. Person zuordenbar: Name, Kennnummern, Standort, Online-Kennungen, physische/physiolog./genetische/psychische/wirtschaftl./kulturelle/soziale Merkmale ·
+      <b>Betroffener</b> = die bestimmte/bestimmbare Person · <b>Verantwortlicher</b> = Institution, die erhebt/verwendet
+    </div>
+    <div class="box lav r2"><span class="label">BVerfG 27.02.2008 → „IT-Grundrecht“</span>
+      Allg. Persönlichkeitsrecht umfasst das <span class="hl">Grundrecht auf Vertraulichkeit + Integrität informationstechnischer Systeme</span>
+      <div class="small">heimlicher Zugriff auf System mit „Einblick in wesentliche Teile der Lebensgestaltung“ → nur in <b>ganz wenigen Ausnahmen</b> · gilt für Smartphones, PCs, Netze, <b>gesamtes Internet</b> · wirkt <b>unmittelbar</b> auf Schutz der Daten, nur <b>mittelbar</b> auf Datenschutz → Brücke zur IT-Sicherheit</div>
+    </div>
+  </div>
+
+  <!-- ---------- Spalte 3 ---------- -->
+  <div class="col">
+    <h2>1.4 IT-SICHERHEIT <span class="p">S. 28–29</span></h2>
+    <div class="small">Sicherheit eines Informationsverbunds = Ausmaß des voraussichtlich <span class="num">1</span><b>störungsfreien</b> + <span class="num">2</span><b>gefahrenfreien</b> Betriebs
+      <ul class="tight">
+        <li><span class="num">1</span>Ausmaß störungsfreier Betrieb = <span class="hl">Verfügbarkeit</span> · Störung ohne Gefährdung → nur <b>Zuverlässigkeit</b> · hängt an Hardware-Qualität (Überlast, Materialversagen) + Software (strenger Entwicklungsprozess, Normen z. B. Luftfahrt = Safety)</li>
+        <li><span class="num">2</span><b>Gefahr</b> = jeder Sachverhalt mit negativen materiellen/immateriellen Auswirkungen</li>
+      </ul>
+    </div>
+    <div class="box yel"><span class="label">Definition (pragmatisch)</span>
+      <span class="def">IT-Sicherheit</span> = <span class="hy">Vorhandensein von Vertraulichkeit, Integrität und Verfügbarkeit in einem geplanten Ausmaß</span> · <b>Schutzziele</b> = Aussagen über Sicherheitsniveaus, die erreicht werden sollen
+    </div>
+    <div style="display:flex;gap:2mm;align-items:flex-start">
+      <svg class="sk" viewBox="0 0 160 140" style="width:50mm;flex:none">
+        <g filter="url(#wob)">
+          <path class="stroke fl" d="M80 8 L152 128 L8 128 Z"/>
+          <path class="stroke thin" d="M80 38 L128 118 L32 118 Z" fill="#c8b6ff"/>
+          <path class="stroke thin" d="M78 66 L108 108 L52 104 Z" fill="#fff08f"/>
+        </g>
+        <text x="80" y="6" text-anchor="middle" class="st" font-size="9">Vertraulichkeit</text>
+        <text x="20" y="138" text-anchor="middle" class="st" font-size="9">Verfügbarkeit</text>
+        <text x="140" y="138" text-anchor="middle" class="st" font-size="9">Integrität</text>
+        <text x="80" y="58" text-anchor="middle" class="cap">Ideal</text>
+        <text x="80" y="80" text-anchor="middle" class="cap">Soll</text>
+        <text x="80" y="102" text-anchor="middle" class="cap">Ist</text>
+        <text x="2" y="20" class="cap">Abb. 8</text>
+      </svg>
+      <div class="small">
+        <b>Vertraulichkeit</b>: Daten nur Befugten bekannt; Funktionen nur von Befugten genutzt · <i class="q">Schaden durch Bekanntwerden?</i><br>
+        <b>Integrität</b>: Daten richtig, vollständig, aktuell — <b>oder erkennbar nicht</b>; Funktionen verlässlich — oder erkennbar nicht · <i class="q">Schaden/Fehlentscheidung durch Manipulation?</i><br>
+        <b>Verfügbarkeit</b>: Daten + Funktionen dort/dann zugänglich, wo/wann Befugte sie brauchen · <i class="q">Prozess blockiert? gesetzlich gefordert?</i>
+      </div>
+    </div>
+    <div class="small"><b>Authentizität</b> (wirklich der behauptete Nutzer) + <b>Nicht-Abstreitbarkeit</b> (non-repudiation) → <span class="hl">Spezialfälle der Integrität</span> · Ziele <b>nicht unabhängig</b>: mehr Vertraulichkeit kann Verfügbarkeit senken! · <b>IT-Sicherheitsmanagement</b> = Prozess: laufend <span class="ht">Ist vs. Soll</span> → Maßnahmen → Annäherung an Soll</div>
+
+    <h2>1.5 ABGRENZUNG <span class="p">S. 30–31</span></h2>
+    <div class="vs">
+      <div><div class="h">Datenschutz</div><div class="small">schützt <b>die (natürliche) Person</b> · garantiert informationelle Selbstbestimmung · Frage: <span class="hl">darf überhaupt erhoben/verwendet werden?</span> · nur <b>personenbezogene</b> Daten · IT-Einsatz <b>nachrangig</b></div></div>
+      <div><div class="h">IT-Sicherheit</div><div class="small">schützt <b>alle Daten</b> eines Informationsverbunds, personenbezogen oder nicht · Frage: <span class="hl">was tun, damit Erhebung/Verwendung sicher ist?</span> · vor unberechtigter Änderung + unbefugter Kenntnisnahme · Hauptaugenmerk: <b>Zuverlässigkeit</b></div></div>
+    </div>
+    <div class="box teal"><span class="label">Überschneidung</span>
+      Patientendaten der Praxis: Datenschutz (Gesetz) <b>und</b> IT-Sicherheit (Berufsordnung → Eigeninteresse des PI) → oft <span class="ht">dieselben Maßnahmen</span> erfüllen beides
+    </div>
+    <div class="box ora r2"><span class="label">Zielkonflikt</span>
+      Login-Protokolle der Mitarbeiter: IT-Sicherheit will <b>immer erheben + fast unbegrenzt aufbewahren</b> — aber = <b>pbD</b> → Erhebung <span class="ho">grundsätzlich erst mal nicht statthaft</span>
+    </div>
+  </div>
+  </div>
+
+  <!-- Merkliste + Glossar -->
+  <div style="display:grid;grid-template-columns:1.9fr 1fr;gap:6mm;margin-top:2.5mm;flex:none">
+    <div class="box lav"><span class="label">Prüfungs-Merkliste in Kürze</span>
+      <div class="small" style="columns:3;column-gap:4mm;font-size:8pt;line-height:1.18">
+        <b>IT</b> = Einsatz elektron. Geräte für Daten in realer Umgebung · Daten ≠ Information ≠ Signal · <b>Informationsverbund</b> (BSI) = technisch (IT-Infrastruktur: Hardware/Software/Bau) + organisatorisch (Institution/Struktur/Personal) · UEFI ersetzt BIOS, Secure Boot · Ethernet 802.3, MAC 48 Bit, Broadcast ff…ff, FCFS, Hub vs. Switch · WLAN 802.11, Beacons, AP, Roaming · 3× MAC · Hash = feste Länge, Prüfsumme · IPv4 32 Bit, DNS Name→IP, Router = IP, verbindungslos, Firewall · TCP zuverlässig/Ports vs. UDP verbindungslos/VoIP · FTP HTTP SMTP DNS VoIP → S-Varianten · <b>Sicherheit</b> = Gewissheit über Zukunft, relativ, nie absolut · Security (gegen Einwirkung) ≠ Safety (der Auswirkung) · <b>Schutz</b> = Maßnahme zur Erhöhung; Prävention → Detektion → Reaktion · Intim- &lt; Privat- &lt; Individualsphäre; Allg. Persönlichkeitsrecht Art. 2 GG · 1969 Mikrozensus · 1983 Volkszählungsurteil: informationelle Selbstbestimmung, kein belangloses Datum, Direkterhebung, Gesetzesvorbehalt, Zweckbindung · 2008 IT-Grundrecht · <b>Datenschutz</b> = Schutz natürl. Personen (Verdatungsschutz) · <b>IT-Sicherheit</b> = Vertraulichkeit + Integrität + Verfügbarkeit im geplanten Ausmaß · ITSM: Ist→Soll · DS fragt „ob“, ITS fragt „wie“ · Konflikt: Login-Logs
+      </div>
+    </div>
+    <div class="box r2"><span class="label">Glossar</span>
+      <div class="small" style="columns:2;column-gap:4mm;font-size:8pt;line-height:1.18">
+        <b>Informationsverbund</b> alle techn. + organisator. Komponenten eines IT-Anwendungsbereichs (BSI) · <b>IT-Infrastruktur</b> nur die technischen · <b>Datagramm</b> Dateneinheit auf IP-Ebene · <b>Port</b> koppelt Sender/Empfänger bei TCP · <b>Beacon</b> WLAN-Präsenzsignal · <b>Piconet</b> Bluetooth-Nahnetz · <b>Erwartungssicherheit</b> = Sicherheit i. S. d. Skripts · <b>Schutzziele</b> Aussagen über zu erreichende Sicherheitsniveaus · <b>Zuverlässigkeit</b> störungsfrei ohne Gefährdung · <b>Betroffener</b> Person hinter den pbD · <b>Verantwortlicher</b> erhebende/verwendende Institution · <b>PVS</b> Praxisverwaltungssystem · <b>TI</b> Telematik-Infrastruktur (eGK)
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span>Lernblatt · Lektion 1 · Seite 2/2</span><span>Eselsbrücke: <span class="eselsbr">V·I·V</span> = Vertraulichkeit · Integrität · Verfügbarkeit &nbsp;·&nbsp; <span class="eselsbr">P·D·R</span> = Prävention · Detektion · Reaktion</span></div>
+</section>
+</body>
+</html>

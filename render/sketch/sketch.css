@@ -1,0 +1,102 @@
+/* Aus docs/reference/Lernblatt_Lektion1_Sketch.html uebernommen (Layout/Look), nur der
+   Google-Fonts-<link> entfaellt -- die @font-face-Regeln werden von fonts.py vor diesem
+   Block eingefuegt (Base64, offline-faehig). */
+:root{
+  --ink:#221e33; --ink2:#4a4466; --mute:#7d77a0;
+  --lav:#c8b6ff; --lav2:#ebe5ff; --lav3:#f5f2ff;
+  --yel:#fff08f; --yel2:#fffbd6;
+  --ora:#ffcf99; --ora2:#fff0dd;
+  --teal:#a9e3d9; --teal2:#e6f7f3;
+  --pink:#ffc2d6;
+  --paper:#fdfcf8;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:#d9d5e6}
+body{font-family:'Kalam','Caveat','Comic Sans MS',cursive;color:var(--ink);font-size:9.6pt;line-height:1.25;font-weight:400}
+@page{size:A3 landscape;margin:0}
+@media print{html,body{background:#fff}section.page{margin:0;box-shadow:none;height:297mm}section.page+section.page{break-before:page}.print-btn{display:none}}
+.page{
+  position:relative;width:420mm;height:297mm;margin:10mm auto;padding:8mm 9mm 11mm;display:flex;flex-direction:column;
+  background:var(--paper);
+  background-image:radial-gradient(circle,#cfc8e6 0.55px,transparent 0.7px);
+  background-size:5mm 5mm;
+  box-shadow:0 4mm 12mm rgba(40,30,80,.25);
+  overflow:hidden;
+}
+.print-btn{position:fixed;top:6mm;right:6mm;z-index:10;border:1.5px solid var(--ink);background:#fff;color:var(--ink);padding:6px 14px;border-radius:999px;font-family:'Kalam',cursive;font-size:11pt;cursor:pointer}
+.print-btn:hover{background:var(--ink);color:#fff}
+/* header */
+.head{display:flex;align-items:flex-end;justify-content:space-between;gap:8mm;margin-bottom:3mm}
+.title{font-family:'Permanent Marker',cursive;font-size:25pt;line-height:1;letter-spacing:.5px;color:var(--ink);position:relative;display:inline-block;padding:0 2mm}
+.title::after{content:"";position:absolute;left:0;right:0;bottom:-1.5mm;height:5mm;background:var(--lav);z-index:-1;transform:rotate(-.4deg);border-radius:3px}
+.kicker{font-family:'Caveat',cursive;font-size:14pt;font-weight:600;color:var(--ink2);margin-bottom:1mm}
+.sticky{font-family:'Caveat',cursive;font-size:12.5pt;line-height:1.15;background:var(--yel);padding:3mm 4mm;width:96mm;transform:rotate(1.3deg);box-shadow:2px 3px 6px rgba(0,0,0,.18);color:var(--ink)}
+.sticky b{font-size:13.5pt}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:0 6mm;flex:1;min-height:0}
+/* Duennes KI-JSON (letzte Seite deutlich unterfuellt): Fussleiste direkt unter die Spalten
+   setzen statt sie ans .page-Ende zu strecken (siehe render_sketch() last_page_sparse). */
+.page.compact .grid{flex:none;align-items:start}
+.col{display:flex;flex-direction:column;gap:2mm;min-width:0}
+/* headings */
+h2{font-family:'Permanent Marker',cursive;font-size:14.5pt;font-weight:400;margin:1mm 0 .5mm;line-height:1.1;letter-spacing:.3px}
+h2 .p{font-family:'Caveat';font-size:11pt;font-weight:600;color:var(--mute);letter-spacing:0;margin-left:2mm}
+h3{font-family:'Caveat',cursive;font-size:14pt;font-weight:700;margin:.5mm 0 .2mm;line-height:1.05;text-decoration:underline;text-decoration-color:var(--lav);text-decoration-thickness:3px;text-underline-offset:2px}
+.p{font-family:'Caveat',cursive;font-weight:600;font-size:10pt;color:var(--mute);white-space:nowrap}
+/* lists */
+ul{margin:0;padding-left:4.2mm}li{margin:0 0 .35mm}li::marker{color:var(--ink2)}
+.tight li{margin:0}
+.arrow-list{list-style:none;padding-left:0}
+.arrow-list li{padding-left:5mm;position:relative}
+.arrow-list li::before{content:"↳";position:absolute;left:.3mm;top:-.2mm;font-family:'Caveat';font-weight:700;font-size:12pt;color:var(--ink2)}
+/* boxes */
+.box{position:relative;padding:4mm 3mm 2.4mm;background:transparent}
+.box::before{content:"";position:absolute;inset:0;border:1.6px solid var(--ink);border-radius:255px 15px 225px 15px/15px 225px 15px 255px;pointer-events:none;filter:url(#wob)}
+.box.r2::before{border-radius:18px 225px 20px 255px/255px 20px 225px 18px}
+.box.lav{background:var(--lav3)} .box.yel{background:var(--yel2)} .box.ora{background:var(--ora2)} .box.teal{background:var(--teal2)}
+.label{position:absolute;top:-3.2mm;left:4mm;background:var(--paper);padding:0 1.5mm;font-family:'Caveat';font-weight:700;font-size:12pt;color:var(--ink2)}
+.box.ora .label{background:var(--ora)} .box.yel .label{background:var(--yel)} .box.lav .label{background:var(--lav)} .box.teal .label{background:var(--teal)}
+.mt{margin-top:2.2mm}
+/* marker highlights */
+.hl,.hy,.ho,.ht{padding:0 .28em;border-radius:.35em .2em .4em .25em;box-decoration-break:clone;-webkit-box-decoration-break:clone}
+.hl{background:linear-gradient(100deg,rgba(200,182,255,.15) 0%,rgba(200,182,255,.95) 5%,rgba(200,182,255,.8) 90%,rgba(200,182,255,.2) 100%)}
+.hy{background:linear-gradient(100deg,rgba(255,240,143,.2) 0%,rgba(255,240,143,.98) 6%,rgba(255,240,143,.85) 92%,rgba(255,240,143,.2) 100%)}
+.ho{background:linear-gradient(100deg,rgba(255,207,153,.2),rgba(255,207,153,.95) 6%,rgba(255,207,153,.85) 92%,rgba(255,207,153,.2))}
+.ht{background:linear-gradient(100deg,rgba(169,227,217,.2),rgba(169,227,217,.95) 6%,rgba(169,227,217,.85) 92%,rgba(169,227,217,.2))}
+b{font-weight:700} .def{font-family:'Caveat';font-weight:700;font-size:12.5pt}
+.cv{font-family:'Caveat';font-weight:600;font-size:12pt}
+.small{font-size:8.7pt;line-height:1.2}
+.mute{color:var(--mute)}
+.num{display:inline-block;width:5mm;height:5mm;line-height:4.6mm;text-align:center;border:1.5px solid var(--ink);border-radius:50% 45% 55% 50%/55% 50% 50% 45%;font-family:'Caveat';font-weight:700;font-size:11.5pt;margin-right:1.2mm;background:#fff;vertical-align:-.5mm}
+.num.f{background:var(--lav)}
+.note{font-family:'Caveat';font-size:12pt;font-weight:600;color:var(--ink2);line-height:1.1}
+.wiggle{display:inline-block;transform:rotate(-1.5deg)}
+/* two-col mini table */
+.vs{display:grid;grid-template-columns:1fr 1fr;gap:0 2mm}
+.vs>div{padding:1mm 1.5mm}
+.vs .h{font-family:'Caveat';font-weight:700;font-size:13pt;text-align:center;border-bottom:2px solid var(--ink);margin-bottom:1mm}
+.vs>div:first-child{border-right:1.4px dashed var(--ink2)}
+/* Tabellen (z.B. Artikel-Listen, Betroffenenrechte, Rechtsquellen-Hierarchien) */
+.table-block{width:100%;border-collapse:collapse;margin:1mm 0 2mm;table-layout:fixed}
+.table-block th,.table-block td{padding:.8mm 1.5mm;text-align:left;vertical-align:top;word-wrap:break-word}
+.table-block th{font-family:'Caveat';font-weight:700;font-size:10.5pt;border-bottom:1.6px solid var(--ink)}
+.table-block td{border-bottom:1px dashed var(--ink2)}
+.table-block tr:last-child td{border-bottom:none}
+/* svg sketches */
+.sketch-block{margin:1mm 0}
+svg.sk{width:100%;height:auto;display:block;overflow:visible}
+svg.sk.w85{width:88%;margin:0 auto} svg.sk.w75{width:74%;margin:0 auto} svg.sk.w90{width:92%;margin:0 auto}
+svg.sk text{font-family:'Kalam',cursive;fill:var(--ink)}
+svg.sk .st{font-family:'Caveat',cursive;font-weight:700}
+svg.sk .cap{font-family:'Caveat',cursive;font-weight:600;font-size:9px;fill:var(--mute)}
+.stroke{fill:none;stroke:var(--ink);stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.thin{stroke-width:1.1}
+.fl{fill:var(--lav2)} .fy{fill:var(--yel2)} .fo{fill:var(--ora2)} .ft{fill:var(--teal2)} .fla{fill:var(--lav)} .fw{fill:#fff}
+.foot{position:absolute;left:9mm;right:9mm;bottom:4mm;display:flex;justify-content:space-between;font-family:'Caveat';font-size:11pt;font-weight:600;color:var(--mute)}
+.abb{font-family:'Caveat';font-weight:600;font-size:10.5pt;color:var(--mute)}
+.eselsbr{font-family:'Caveat';font-weight:700;font-size:13pt;color:var(--ink);transform:rotate(-1deg);display:inline-block}
+.q{font-family:'Caveat';font-size:12pt;font-weight:600;font-style:normal}
+.tag{display:inline-block;font-family:'Caveat';font-weight:700;font-size:10.5pt;border:1.4px solid var(--ink);border-radius:9px 5px 8px 6px;padding:0 1.6mm;line-height:1.35;background:#fff;margin-right:.5mm}
+/* Merkliste/Glossar-Fussleiste (immer auf der letzten Seite) */
+.bottom-strip{display:grid;grid-template-columns:1.9fr 1fr;gap:6mm;margin-top:2.5mm;flex:none}
+.bottom-strip .small{columns:3;column-gap:4mm;font-size:8pt;line-height:1.18}
+.bottom-strip .box:last-child .small{columns:2}

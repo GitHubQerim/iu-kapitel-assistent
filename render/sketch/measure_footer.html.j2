@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<style>
+{{ font_face_css | safe }}
+{{ sketch_css | safe }}
+body{margin:0}
+.measure-footer{width:{{ footer_width_mm }}mm;position:relative}
+.bottom-strip{margin-top:0}
+</style>
+</head>
+<body>
+{% import "_blocks.html.j2" as blocks_macro %}
+<div class="measure-footer">{{ blocks_macro.render_footer(merkliste, glossar) }}</div>
+</body>
+</html>

@@ -3,3 +3,13 @@ genanki
 json_repair
 pywebview
 markdown
+jinja2
+jsonschema
+
+# Optional, aber empfohlen für "Zusammenfassung 2.0" (--mode sketch):
+#   pip install playwright && playwright install chromium
+# Wird für zwei Dinge genutzt: (1) echte Block-Höhen messen für die Spaltenverteilung
+# (pixelgenau statt geschätzt, siehe render/sketch/measure.py) und (2) automatischer
+# PDF-Export. Ohne playwright funktioniert der Sketch-Modus weiterhin, nur mit der groben
+# Höhen-Heuristik in render/sketch/layout.py und ohne automatischen PDF-Export (Hinweis: im
+# Browser Cmd+P -> "Als PDF sichern").

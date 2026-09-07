@@ -370,6 +370,7 @@
   }
   .lib-badge.summary { background: var(--accent-track); color: var(--accent-500); }
   .lib-badge.flashcards { background: var(--n700); color: var(--text-secondary); }
+  .lib-badge.sketch { background: var(--accent-track); color: var(--success); }
   .lib-label {
     flex: 1;
     min-width: 0;
@@ -489,6 +490,7 @@
     <div class="row">
       <div class="toggle" role="group" aria-label="Modus">
         <button type="button" id="modeSummary" aria-pressed="true">Zusammenfassung</button>
+        <button type="button" id="modeSketch" aria-pressed="false">Zusammenfassung 2.0</button>
         <button type="button" id="modeFlashcards" aria-pressed="false">Karteikarten</button>
       </div>
     </div>
@@ -649,7 +651,7 @@
 
         const badge = document.createElement("span");
         badge.className = "lib-badge " + entry.type;
-        badge.textContent = entry.type === "flashcards" ? "APKG" : "MD";
+        badge.textContent = entry.type === "flashcards" ? "APKG" : entry.type === "sketch" ? "SKETCH" : "MD";
 
         const label = document.createElement("span");
         label.className = "lib-label";
@@ -691,17 +693,27 @@
 
   el("newChapterBtn").addEventListener("click", resetForNextChapter);
 
+function outputExtFor(m) {
+    return m === "flashcards" ? "apkg" : m === "sketch" ? "html" : "md";
+  }
+
   function setMode(newMode) {
     mode = newMode;
     el("modeSummary").setAttribute("aria-pressed", String(newMode === "summary"));
+    el("modeSketch").setAttribute("aria-pressed", String(newMode === "sketch"));
     el("modeFlashcards").setAttribute("aria-pressed", String(newMode === "flashcards"));
     deckNameRow.style.display = newMode === "flashcards" ? "flex" : "none";
-    summaryOptions.style.display = newMode === "summary" ? "block" : "none";
+    summaryOptions.style.display = newMode === "flashcards" ? "none" : "block";
+    el("chipGlossary").style.display = newMode === "sketch" ? "none" : "";
+    el("chipImages").textContent = newMode === "sketch" ? "Skizzen erlauben" : "Bilder";
+    el("chipImages").title = newMode === "sketch"
+      ? "An: KI zeichnet Abbildungen als Skizze nach, wo sinnvoll. Aus: immer das echte extrahierte Bild verwenden."
+      : "";
 
-    const newExt = newMode === "flashcards" ? "apkg" : "md";
+    const newExt = outputExtFor(newMode);
     const current = outputInput.value.trim();
-    if (current && /\.(md|apkg)$/i.test(current)) {
-      outputInput.value = current.replace(/\.(md|apkg)$/i, "." + newExt);
+    if (current && /\.(md|apkg|html)$/i.test(current)) {
+      outputInput.value = current.replace(/\.(md|apkg|html)$/i, "." + newExt);
     }
     resetSteps();
     revealBtn.disabled = true;
@@ -709,6 +721,7 @@
   }
 
   el("modeSummary").addEventListener("click", () => setMode("summary"));
+  el("modeSketch").addEventListener("click", () => setMode("sketch"));
   el("modeFlashcards").addEventListener("click", () => setMode("flashcards"));
 
   function setDetailLevel(level) {
@@ -755,7 +768,7 @@
     if (result.files && result.files.length) {
       fileNameEl.textContent = result.files.join(", ");
       fileNameEl.classList.add("chosen");
-      const ext = mode === "flashcards" ? "apkg" : "md";
+      const ext = outputExtFor(mode);
       outputInput.value = result.default_output_dir + "/" + result.default_output_base + "." + ext;
       deckNameInput.value = result.default_deck_name;
       resetSteps();
@@ -765,15 +778,15 @@
   });
 
   el("pickOutputBtn").addEventListener("click", async () => {
-    const ext = mode === "flashcards" ? "apkg" : "md";
+    const ext = outputExtFor(mode);
     const path = await window.pywebview.api.pick_output(ext);
     if (path) outputInput.value = path;
   });
 
   el("copyPromptBtn").addEventListener("click", async () => {
-    const options = mode === "summary"
-      ? { detail_level: detailLevel, include_images: includeImages, include_glossary: includeGlossary }
-      : {};
+    const options = mode === "flashcards"
+      ? {}
+      : { detail_level: detailLevel, include_images: includeImages, include_glossary: includeGlossary };
     const result = await window.pywebview.api.copy_prompt(mode, options);
     if (!result.ok) {
       setStepState(step1, step1Icon, "error", "✗", step1Detail, result.error);

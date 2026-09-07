@@ -10,18 +10,22 @@ from kapitel_assistent import (
     build_content,
     build_flashcards_deck,
     build_flashcards_prompt,
+    build_sketch_prompt,
     build_summary_prompt,
     collect_all_captions,
     copy_to_clipboard,
     import_existing,
     is_unchanged_prompt,
     load_library,
+    make_sketch_image_resolver,
     open_in_browser,
     organize_chapter_output,
     parse_flashcards,
+    parse_sketch_response,
     place_images_inline,
     read_clipboard,
     record_flashcards,
+    record_sketch,
     record_summary,
     render_summary_html,
     save_chapter_images,
@@ -70,13 +74,31 @@ class Api:
 
         options = options or {}
         pdf_paths = [Path(p) for p in self.pdf_paths]
+        if mode == "sketch" and len(pdf_paths) != 1:
+            return {
+                "ok": False,
+                "error": "Zusammenfassung 2.0 unterstützt nur genau ein PDF pro Kapitel "
+                         "(echte Skript-Seitenzahlen sind PDF-lokal).",
+            }
         include_images = options.get("include_images", True)
-        content, image_pages = build_content(pdf_paths, extract_images=include_images)
+        # Im Sketch-Modus bedeutet "include_images" nur noch "KI darf Skizzen zeichnen"
+        # (siehe build_sketch_prompt/allow_sketches) -- Bilder werden trotzdem IMMER
+        # extrahiert, weil auch der "image"-Fallback pro Abbildung das echte Bild braucht.
+        content, image_pages = build_content(
+            pdf_paths, extract_images=True if mode == "sketch" else include_images,
+            include_page_markers=(mode == "sketch"),
+        )
         self.pending = (pdf_paths, content, image_pages, options)
         captions = collect_all_captions(image_pages)
 
         if mode == "flashcards":
             prompt = build_flashcards_prompt(content, captions)
+        elif mode == "sketch":
+            prompt = build_sketch_prompt(
+                content, captions,
+                detail_level=options.get("detail_level", "ausfuehrlich"),
+                allow_sketches=include_images,
+            )
         else:
             prompt = build_summary_prompt(
                 content, captions,
@@ -107,7 +129,7 @@ class Api:
             }
 
         out_path = Path(out_path_str)
-        expected_ext = ".apkg" if mode == "flashcards" else ".md"
+        expected_ext = ".apkg" if mode == "flashcards" else ".html" if mode == "sketch" else ".md"
         if out_path.suffix.lower() != expected_ext:
             out_path = out_path.with_suffix(expected_ext)
 
@@ -115,6 +137,8 @@ class Api:
             if mode == "flashcards":
                 name = deck_name or default_deck_name(pdf_paths[0])
                 message, label = self._build_flashcards(response, image_pages, out_path, name, pdf_paths)
+            elif mode == "sketch":
+                message, label = self._build_sketch(response, image_pages, out_path, pdf_paths)
             else:
                 message, label = self._build_summary(response, image_pages, out_path, pdf_paths, options)
         except ValueError as exc:
@@ -151,7 +175,7 @@ class Api:
         if not (0 <= index < len(entries)):
             return {"ok": False, "error": "Eintrag nicht gefunden."}
         entry = entries[index]
-        if entry.get("type") == "summary" and entry.get("html_path") and Path(entry["html_path"]).exists():
+        if entry.get("type") in ("summary", "sketch") and entry.get("html_path") and Path(entry["html_path"]).exists():
             open_in_browser(Path(entry["html_path"]))
             return {"ok": True}
         if entry.get("apkg_path") and Path(entry["apkg_path"]).exists():
@@ -200,6 +224,21 @@ class Api:
         record_flashcards(out_path, deck_name)
         message = f"{total} Karteikarte(n) ({with_image} mit Bild) + {extra_image_cards} zusätzliche Bild-Karte(n)."
         return message, deck_name
+
+    def _build_sketch(self, response, image_pages, out_path: Path, pdf_paths):
+        from render.sketch import render_sketch, render_sketch_pdf
+
+        data = parse_sketch_response(response)
+        out_path = organize_chapter_output(out_path, pdf_paths)
+        saved_images = save_chapter_images(image_pages, out_path.parent / f"{out_path.stem}_bilder")
+        resolver = make_sketch_image_resolver(saved_images, out_path.parent)
+        render_sketch(data, out_path, image_resolver=resolver)
+        pdf_path, pdf_hint = render_sketch_pdf(out_path)
+        open_in_browser(out_path)
+        label = record_sketch(out_path, pdf_paths)
+        message = "Sketch-Lernblatt gespeichert. HTML-Ansicht geöffnet."
+        message += f" PDF-Export: {pdf_path.name}." if pdf_path else f" {pdf_hint}"
+        return message, label
 
 
 if __name__ == "__main__":

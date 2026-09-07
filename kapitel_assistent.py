@@ -10,6 +10,8 @@ import webbrowser
 from datetime import datetime
 from pathlib import Path
 
+import jinja2
+import jsonschema
 import markdown as markdown_lib
 from pypdf import PdfReader
 
@@ -93,6 +95,23 @@ def build_flashcards_prompt(content: str, captions: list) -> str:
     )
 
 
+_PROMPT_ENV = jinja2.Environment(
+    loader=jinja2.FileSystemLoader(str(Path(__file__).parent / "prompts")),
+    autoescape=False,
+    trim_blocks=True,
+    lstrip_blocks=True,
+)
+
+
+def build_sketch_prompt(content: str, captions: list, detail_level: str = "ausfuehrlich",
+                         allow_sketches: bool = True) -> str:
+    template = _PROMPT_ENV.get_template("sketch_summary.md.j2")
+    return template.render(
+        content=content, captions=captions, detail_level=detail_level,
+        allow_sketches=allow_sketches,
+    )
+
+
 CAPTION_START_RE = re.compile(r"^(?:Abbildung|Figure)\s+\d+[:.]")
 SOURCE_LINE_RE = re.compile(r"^(?:Quelle|Source):")
 
@@ -139,13 +158,37 @@ def resolve_pdf_path(path: Path) -> Path:
     raise FileNotFoundError(f"PDF nicht gefunden: {path}{hint}")
 
 
-def extract_chapter(pdf_path: Path, extract_images: bool = True):
+SCRIPT_PAGE_RE = re.compile(r"^\d{1,4}$")
+
+
+def resolve_script_page(page_text: str, previous, start_page: int) -> int:
+    """Ermittelt die echte Skript-Seitenzahl aus der Fußzeile einer PDF-Seite.
+
+    IU-Skripte drucken die Seitenzahl meist als eigene Zeile am Seitenende. Wird keine
+    passende Zeile gefunden (Scan-Artefakte, oder die allererste Seite ohne Fußzeile), gilt
+    `previous + 1`, bzw. für die allererste Seite (`previous is None`) `start_page` als
+    Fallback. `previous` ist bewusst `None` statt `0` für "noch keine Seite erkannt" --
+    sonst würde eine legitim erkannte Seite 0 fälschlich wie "nichts erkannt" behandelt.
+    """
+    lines = [line.strip() for line in page_text.splitlines() if line.strip()]
+    if lines and SCRIPT_PAGE_RE.match(lines[-1]):
+        return int(lines[-1])
+    return previous + 1 if previous is not None else start_page
+
+
+def extract_chapter(pdf_path: Path, extract_images: bool = True,
+                     include_page_markers: bool = False, start_page: int = 1):
     reader = PdfReader(resolve_pdf_path(pdf_path))
     text_parts = []
     image_pages = []
+    previous_script_page = None
     for i, page in enumerate(reader.pages, start=1):
         page_text = page.extract_text() or ""
-        text_parts.append(page_text)
+        if include_page_markers:
+            previous_script_page = resolve_script_page(page_text, previous_script_page, start_page)
+            text_parts.append(f"{page_text}\n[S. {previous_script_page}]\n")
+        else:
+            text_parts.append(page_text)
         if extract_images and page.images:
             images = list(page.images)
             captions = extract_captions(page_text)
@@ -155,11 +198,15 @@ def extract_chapter(pdf_path: Path, extract_images: bool = True):
     return "\n".join(text_parts), image_pages
 
 
-def build_content(pdf_paths, extract_images: bool = True):
+def build_content(pdf_paths, extract_images: bool = True,
+                   include_page_markers: bool = False, start_page: int = 1):
     sections = []
     all_image_pages = []
     for pdf_path in pdf_paths:
-        text, image_pages = extract_chapter(pdf_path, extract_images=extract_images)
+        text, image_pages = extract_chapter(
+            pdf_path, extract_images=extract_images,
+            include_page_markers=include_page_markers, start_page=start_page,
+        )
         sections.append(f"## Quelle: {pdf_path.name}\n\n{text}")
         all_image_pages.append((pdf_path, image_pages))
     return "\n\n".join(sections), all_image_pages
@@ -249,6 +296,35 @@ def attach_images_to_cards(cards, saved_images):
 
     leftover = [item["entry"] for item in pool if not item["used"]]
     return leftover, embedded_paths
+
+
+def make_sketch_image_resolver(saved_images, out_dir: Path):
+    """Baut den image_resolver für render_sketch(): löst einen "sketch"-Block vom Typ
+    "image" auf den passenden extrahierten Bildpfad auf.
+
+    Bevorzugter Match-Schlüssel ist das numerische "figure"-Feld aus dem Schema (zuverlässig,
+    da die KI hier nur eine Zahl abschreiben muss) — die Bildunterschrift dient nur als
+    Fallback, falls "figure" fehlt (gleiches Prinzip wie bei place_images_inline()/
+    attach_images_to_cards(), dort nur mit Caption statt Nummer, weil es dort kein separates
+    Nummernfeld gibt)."""
+    pool = _build_image_pool(saved_images)
+
+    def resolve(caption, figure=None):
+        if figure is not None:
+            figure_key = str(figure)
+            for item in pool:
+                if not item["used"] and caption_key(item["caption"]) == figure_key:
+                    item["used"] = True
+                    return str(item["entry"][2].relative_to(out_dir))
+        if not caption:
+            return None
+        match = _pop_matching_image(pool, caption)
+        if not match:
+            return None
+        _, _, img_path, _ = match
+        return str(img_path.relative_to(out_dir))
+
+    return resolve
 
 
 def copy_to_clipboard(text: str):
@@ -591,6 +667,17 @@ def record_flashcards(apkg_path: Path, deck_name: str):
     })
 
 
+def record_sketch(html_path: Path, pdf_paths) -> str:
+    label = prettify_stem(pdf_paths[0].stem) if pdf_paths else html_path.stem
+    add_library_entry({
+        "type": "sketch",
+        "label": label,
+        "html_path": str(html_path),
+        "created_at": datetime.now().isoformat(timespec="seconds"),
+    })
+    return label
+
+
 def import_existing(paths) -> list:
     """Nimmt bereits vorhandene .md-/.apkg-Dateien (aus der Zeit vor der Bibliothek) nachträglich auf.
 
@@ -619,17 +706,51 @@ def sanitize_json_candidate(text: str) -> str:
     return re.sub(r",\s*([\]}])", r"\1", text)
 
 
-def parse_flashcards(response: str):
+def _extract_balanced(text: str, open_ch: str, close_ch: str):
+    """Findet das erste vollstaendige, klammerbalancierte Fragment ab dem ersten `open_ch`
+    (klammertiefe-bewusst, ignoriert Klammerzeichen innerhalb von JSON-Strings) -- robuster
+    als eine gierige Regex wie r"\\[.*\\]", die bei Erklaertext NACH dem eigentlichen JSON
+    (der zufaellig auch eine schliessende Klammer enthaelt) zu viel mitnehmen wuerde."""
+    start = text.find(open_ch)
+    if start == -1:
+        return None
+    depth = 0
+    in_string = False
+    escape = False
+    for i in range(start, len(text)):
+        ch = text[i]
+        if in_string:
+            if escape:
+                escape = False
+            elif ch == "\\":
+                escape = True
+            elif ch == '"':
+                in_string = False
+            continue
+        if ch == '"':
+            in_string = True
+        elif ch == open_ch:
+            depth += 1
+        elif ch == close_ch:
+            depth -= 1
+            if depth == 0:
+                return text[start:i + 1]
+    return None
+
+
+def _parse_json_candidate(response: str, open_ch: str, close_ch: str):
+    """Extrahiert und parst ein JSON-Fragment aus einer KI-Antwort, robust gegen
+    Codeblock-Fences, kaputte Anführungszeichen und trailing commas (gemeinsame Basis für
+    Karteikarten- und Sketch-JSON)."""
     text = response.strip()
     fence_match = re.search(r"```(?:json)?\s*\n?(.*?)\n?```", text, re.DOTALL)
     if fence_match:
         text = fence_match.group(1)
 
-    match = re.search(r"\[.*\]", text, re.DOTALL)
-    if not match:
-        raise ValueError("Kein JSON-Array in der Antwort gefunden.")
+    candidate = _extract_balanced(text, open_ch, close_ch)
+    if candidate is None:
+        raise ValueError("Kein JSON-Fragment in der Antwort gefunden.")
 
-    candidate = match.group(0)
     for attempt in (candidate, sanitize_json_candidate(candidate)):
         try:
             return json.loads(attempt)
@@ -645,6 +766,31 @@ def parse_flashcards(response: str):
     except (json.JSONDecodeError, ValueError):
         pass
     raise ValueError(f"JSON konnte nicht geparst werden ({last_error}).")
+
+
+def parse_flashcards(response: str):
+    return _parse_json_candidate(response, "[", "]")
+
+
+_SKETCH_SCHEMA_PATH = Path(__file__).parent / "schema" / "sketch_summary.schema.json"
+_SKETCH_SCHEMA = None
+
+
+def _load_sketch_schema() -> dict:
+    global _SKETCH_SCHEMA
+    if _SKETCH_SCHEMA is None:
+        _SKETCH_SCHEMA = json.loads(_SKETCH_SCHEMA_PATH.read_text(encoding="utf-8"))
+    return _SKETCH_SCHEMA
+
+
+def parse_sketch_response(response: str) -> dict:
+    data = _parse_json_candidate(response, "{", "}")
+    try:
+        jsonschema.validate(data, _load_sketch_schema())
+    except jsonschema.ValidationError as exc:
+        path = "/".join(str(p) for p in exc.path) or "(Wurzel)"
+        raise ValueError(f"JSON entspricht nicht dem Schema bei '{path}': {exc.message}")
+    return data
 
 
 def is_unchanged_prompt(response: str, prompt: str) -> bool:
@@ -679,6 +825,16 @@ def prompt_and_wait(prompt: str, kind: str, parse_fn=lambda r: r):
 
 
 def cmd_summary(args):
+    """Dünner Dispatcher: klassische Markdown-Zusammenfassung vs. Sketch-Lernblatt teilen sich
+    nur die CLI-Argumente, nicht den Ablauf (Prompt/Parsing/Rendering unterscheiden sich in
+    praktisch jedem Schritt) — siehe _cmd_summary_classic()/_cmd_summary_sketch()."""
+    if args.mode == "sketch":
+        _cmd_summary_sketch(args)
+    else:
+        _cmd_summary_classic(args)
+
+
+def _cmd_summary_classic(args):
     pdf_paths = [Path(p) for p in args.pdfs]
     content, image_pages = build_content(pdf_paths, extract_images=args.images)
     captions = collect_all_captions(image_pages)
@@ -711,6 +867,42 @@ def cmd_summary(args):
         placed = len(saved_images) - len(leftover_images)
         print(f"{placed} Bild(er) im Text platziert, {len(leftover_images)} zusätzlich angehängt.")
     print(f"HTML-Ansicht geöffnet: {html_path}")
+
+
+def _cmd_summary_sketch(args):
+    pdf_paths = [Path(p) for p in args.pdfs]
+    if len(pdf_paths) != 1:
+        raise SystemExit(
+            "--mode sketch unterstützt nur genau ein PDF pro Aufruf: echte Skript-Seitenzahlen "
+            "werden aus der Fußzeile jeder PDF-Seite geparst und sind PDF-lokal — bei mehreren "
+            "PDFs würde Seite 1 des zweiten PDFs mit Seite 1 des ersten kollidieren."
+        )
+
+    content, image_pages = build_content(
+        pdf_paths, extract_images=True, include_page_markers=True, start_page=args.start_page,
+    )
+    captions = collect_all_captions(image_pages)
+    allow_sketches = args.images  # "Bilder"-Chip/Flag, im Sketch-Modus umgedeutet (siehe README)
+    prompt = build_sketch_prompt(content, captions, detail_level=args.detail,
+                                  allow_sketches=allow_sketches)
+    data = prompt_and_wait(prompt, "Sketch-Lernblatt", parse_fn=parse_sketch_response)
+
+    out_path = organize_chapter_output(Path(args.out).with_suffix(".html"), pdf_paths)
+    saved_images = save_chapter_images(image_pages, out_path.parent / f"{out_path.stem}_bilder")
+    image_resolver = make_sketch_image_resolver(saved_images, out_path.parent)
+
+    from render.sketch import render_sketch, render_sketch_pdf
+    render_sketch(data, out_path, image_resolver=image_resolver)
+    pdf_path, pdf_hint = render_sketch_pdf(out_path)
+
+    open_in_browser(out_path)
+    record_sketch(out_path, pdf_paths)
+
+    print(f"Sketch-Lernblatt gespeichert: {out_path}")
+    if pdf_path:
+        print(f"PDF-Export: {pdf_path}")
+    elif pdf_hint:
+        print(pdf_hint)
 
 
 def build_flashcards_deck(cards, image_pages, out_path: Path, deck_name: str):
@@ -788,6 +980,12 @@ def main():
                             help="Keine Abbildungen extrahieren/einbetten")
     p_summary.add_argument("--glossar", action="store_true", default=False,
                             help="Zusätzlichen Glossar-Abschnitt anfordern")
+    p_summary.add_argument("--mode", choices=["klassisch", "sketch"], default="klassisch",
+                            help="klassisch = Markdown+HTML (Standard), "
+                                 "sketch = Sketch-Lernblatt (A3 quer, Skizzen, nur 1 PDF)")
+    p_summary.add_argument("--start-page", type=int, default=1,
+                            help="Nur bei --mode sketch: Skript-Startseite als Fallback, falls "
+                                 "die Fußzeilen-Seitenzahl der ersten PDF-Seite nicht erkannt wird")
     p_summary.set_defaults(func=cmd_summary)
 
     p_cards = sub.add_parser("flashcards", help="Anki-Karteikarten erzeugen")

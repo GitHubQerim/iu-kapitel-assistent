@@ -1,0 +1,183 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Sketch-Lernblatt-Antwort",
+  "type": "object",
+  "required": ["module", "chapter", "learning_goals", "blocks"],
+  "additionalProperties": true,
+  "properties": {
+    "module": {"type": "string", "minLength": 1},
+    "chapter": {
+      "type": "object",
+      "required": ["number", "title", "pages"],
+      "additionalProperties": true,
+      "properties": {
+        "number": {"type": ["integer", "string"]},
+        "title": {"type": "string", "minLength": 1},
+        "pages": {"type": "string", "minLength": 1}
+      }
+    },
+    "learning_goals": {
+      "type": "array",
+      "items": {"type": "string"}
+    },
+    "blocks": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/definitions/block"},
+      "allOf": [
+        {"contains": {"type": "object", "required": ["type"], "properties": {"type": {"const": "merkliste"}}}},
+        {"contains": {"type": "object", "required": ["type"], "properties": {"type": {"const": "glossar"}}}}
+      ]
+    }
+  },
+  "definitions": {
+    "page": {"type": ["integer", "string"]},
+    "block": {
+      "type": "object",
+      "required": ["type"],
+      "additionalProperties": true,
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "h2", "h3", "def", "bullets", "arrowlist", "vs", "table", "box", "note",
+            "sketch", "merkliste", "glossar"
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"type": {"const": "h2"}}, "required": ["type"]},
+          "then": {"required": ["text"], "properties": {"text": {"type": "string"}, "page": {"$ref": "#/definitions/page"}}}
+        },
+        {
+          "if": {"properties": {"type": {"const": "h3"}}, "required": ["type"]},
+          "then": {"required": ["text"], "properties": {"text": {"type": "string"}, "page": {"$ref": "#/definitions/page"}}}
+        },
+        {
+          "if": {"properties": {"type": {"const": "def"}}, "required": ["type"]},
+          "then": {
+            "required": ["term", "text"],
+            "properties": {
+              "term": {"type": "string"},
+              "text": {"type": "string"},
+              "page": {"$ref": "#/definitions/page"}
+            }
+          }
+        },
+        {
+          "if": {"properties": {"type": {"const": "bullets"}}, "required": ["type"]},
+          "then": {
+            "required": ["items"],
+            "properties": {
+              "items": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+              "page": {"$ref": "#/definitions/page"}
+            }
+          }
+        },
+        {
+          "if": {"properties": {"type": {"const": "arrowlist"}}, "required": ["type"]},
+          "then": {
+            "required": ["items"],
+            "properties": {
+              "items": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+              "page": {"$ref": "#/definitions/page"}
+            }
+          }
+        },
+        {
+          "if": {"properties": {"type": {"const": "vs"}}, "required": ["type"]},
+          "then": {
+            "required": ["left", "right"],
+            "properties": {
+              "left": {"$ref": "#/definitions/vsSide"},
+              "right": {"$ref": "#/definitions/vsSide"}
+            }
+          }
+        },
+        {
+          "if": {"properties": {"type": {"const": "table"}}, "required": ["type"]},
+          "then": {
+            "required": ["headers", "rows"],
+            "properties": {
+              "headers": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+              "rows": {
+                "type": "array",
+                "minItems": 1,
+                "items": {"type": "array", "items": {"type": "string"}}
+              }
+            }
+          }
+        },
+        {
+          "if": {"properties": {"type": {"const": "box"}}, "required": ["type"]},
+          "then": {
+            "required": ["variant", "label", "text"],
+            "properties": {
+              "variant": {"type": "string", "enum": ["ora", "yel", "lav", "teal"]},
+              "label": {"type": "string"},
+              "text": {"type": "string"}
+            }
+          }
+        },
+        {
+          "if": {"properties": {"type": {"const": "note"}}, "required": ["type"]},
+          "then": {"required": ["text"], "properties": {"text": {"type": "string"}}}
+        },
+        {
+          "if": {"properties": {"type": {"const": "sketch"}}, "required": ["type"]},
+          "then": {
+            "required": ["template"],
+            "properties": {
+              "template": {
+                "type": "string",
+                "enum": ["stack", "cycle", "layers", "rings", "triangle", "timeline", "flow", "image"]
+              },
+              "figure": {"type": ["integer", "string"]},
+              "items": {"type": "array"},
+              "src": {"type": "string"},
+              "caption": {"type": "string"}
+            },
+            "if": {"properties": {"template": {"const": "image"}}},
+            "then": {"required": ["caption"]}
+          }
+        },
+        {
+          "if": {"properties": {"type": {"const": "merkliste"}}, "required": ["type"]},
+          "then": {
+            "required": ["items"],
+            "properties": {"items": {"type": "array", "minItems": 1, "items": {"type": "string"}}}
+          }
+        },
+        {
+          "if": {"properties": {"type": {"const": "glossar"}}, "required": ["type"]},
+          "then": {
+            "required": ["items"],
+            "properties": {
+              "items": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "object",
+                  "required": ["term", "text"],
+                  "properties": {
+                    "term": {"type": "string"},
+                    "text": {"type": "string"}
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "vsSide": {
+      "type": "object",
+      "required": ["title", "text"],
+      "properties": {
+        "title": {"type": "string"},
+        "text": {"type": "string"}
+      }
+    }
+  }
+}

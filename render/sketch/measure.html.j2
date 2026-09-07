@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<style>
+{{ font_face_css | safe }}
+{{ sketch_css | safe }}
+/* Exakt wie .col in template.html.j2 (gleicher Flex-Column-Kontext -- keine Margin-Collapse
+   zwischen Bloecken, wie im echten Lernblatt), nur mit fester Breite statt Grid-Zelle. */
+.measure-col{display:flex;flex-direction:column;gap:2mm;width:{{ column_width_mm }}mm}
+body{margin:0}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <filter id="wob" x="-5%" y="-5%" width="110%" height="110%">
+    <feTurbulence type="fractalNoise" baseFrequency="0.018" numOctaves="2" seed="7" result="n"/>
+    <feDisplacementMap in="SourceGraphic" in2="n" scale="2.4" xChannelSelector="R" yChannelSelector="G"/>
+  </filter>
+</svg>
+{% import "_blocks.html.j2" as blocks_macro %}
+<div class="measure-col">{% for block in blocks %}{{ blocks_macro.render_block(block) }}{% endfor %}</div>
+</body>
+</html>

@@ -1,0 +1,90 @@
+Du hilfst einem Studenten, aus einem Kapitel eines Studienskripts ein dichtes, handschriftlich
+wirkendes Lernblatt ("Sketch-Zusammenfassung") vorzubereiten. Du lieferst dafür AUSSCHLIESSLICH
+strukturierten Inhalt als JSON -- das Layout, alle Farben und alle Zeichnungen macht ein
+separates Programm, du musst dich um nichts Visuelles kümmern.
+
+Regeln:
+- Nutze NUR Inhalte aus dem folgenden Kapiteltext, erfinde nichts hinzu.
+- Der Kapiteltext enthält Seitenmarker im Format "[S. <n>]" nach jeder PDF-Seite. Trage bei
+  jedem Block, der ein "page"-Feld hat, die echte Skriptseite ein, auf der der Inhalt steht.
+- Struktur pro thematischem Abschnitt (nicht jeder Block ist Pflicht, aber diese Reihenfolge
+  ist die Grundidee): Definition -> Kernpunkte -> Skizze -> Anwendung/Kritik -> Merkhilfe.
+- Mindestens 1 Block vom Typ "box" mit "label": "Klausur-Falle" pro Abschnitt, an dem das
+  Skript eine Stolperstelle, einen Irrtum oder eine häufige Verwechslung nennt.
+- JEDER "h2"-Abschnitt braucht mindestens EINE Visualisierung: einen "sketch"-Block ODER
+  einen "table"-Block. Eine Seite voller reiner Text-/Bullet-Blöcke ohne jede Visualisierung
+  ist NICHT ausreichend.
+- Block "table" (Tabelle, 2-3 Spalten) verwenden statt Bullet-Liste, wenn mehrere parallele,
+  kurze Einträge nebeneinander stehen -- typisch bei Rechtskapiteln: Artikel-Nummern mit
+  Kurztitel/Kernaussage (z. B. Art. 6 a-f DSGVO), Betroffenenrechte (Art. 15-18: Recht auf ...),
+  Rechtsquellen-Hierarchien (Verordnung > Gesetz > Richtlinie > ...). Format:
+  {"type": "table", "headers": ["Artikel", "Titel", "Kernaussage"], "rows": [["Art. 6 Abs. 1 a", "Einwilligung", "..."], ...]}
+- Eselsbrücken/Merkhilfen sind ausdrücklich erlaubt und erwünscht (Block "note" oder "box").
+- Die Blöcke "merkliste" (Prüfungs-Merkliste in Kürze) und "glossar" sind PFLICHT und stehen
+  am Ende des "blocks"-Arrays.
+- Sprache: telegrammartig, Stichpunkte und Pfeile (→, ↳) statt ausformulierter Sätze -- aber
+  KONKRET: übernimm Zahlen, Beispiele, Eigennamen, Abkürzungen und Fachbegriffe aus dem Skript
+  wörtlich, statt sie zu abstrakten Oberbegriffen zu verallgemeinern. "IP-Adresse: 32 Bit, 4
+  Zahlen 0–255, z. B. 195.247.86.5" ist richtig, "IP-Adressen haben ein bestimmtes Format" ist
+  zu vage und in dieser Form NICHT ausreichend.
+- Bei "sketch"-Blöcken mit "template": "timeline": "sub" pro Knoten auf max. 2 sehr kurze
+  Zeilen (je 1-3 Wörter) mit "|" getrennt beschränken -- die Knoten stehen eng nebeneinander,
+  lange Zeilen laufen sonst ineinander.
+{% if detail_level == "kurz" -%}
+- Detailgrad KURZ: nur die wichtigsten Abschnitte, vorrangig Definitionen und Merksätze.
+  Sketches nur für die 1-2 zentralsten Abbildungen, nicht für jede Nebensächlichkeit.
+{%- else -%}
+- Detailgrad AUSFÜHRLICH: alle Abschnitte UND alle Unterabschnitte des Kapitels abdecken,
+  inklusive Nebenaspekten, Beispielen und Fallbeispielen -- nicht nur die Kernaussage jedes
+  Abschnitts, sondern auch die Details, Zahlen und Aufzählungen darunter, die das Skript
+  nennt. Faustregel für den Umfang: pro thematischem Unterabschnitt (jede Zahl/jede
+  Zwischenüberschrift im Skript) mehrere Blöcke (typischerweise 4-8: Definition, 1-2
+  Bullet-Listen, ggf. Sketch, ggf. Klausur-Falle) -- für ein Kapitel von ~20 Skriptseiten sind
+  das insgesamt eher 50-70 Blöcke als 20-30. Lieber zu ausführlich als zu knapp.
+{%- endif %}
+
+Abbildungen im Kapitel:
+{% if captions -%}
+{% for caption in captions %}- {{ caption }}
+{% endfor -%}
+{%- if allow_sketches %}
+Entscheide pro Abbildung, ob eine nachgezeichnete Skizze (Block "sketch", "template" aus
+[stack, cycle, layers, rings, triangle, timeline, flow] -- je nachdem, was die Abbildung
+inhaltlich zeigt) sinnvoller ist als das echte Bild, oder ob die Abbildung zu komplex/speziell
+ist (z. B. ein Foto oder eine sehr spezifische Netzwerkskizze) -- dann "template": "image".
+{%- else %}
+Setze für JEDE Abbildung "template": "image" (keine nachgezeichneten Skizzen).
+{%- endif %}
+Bei "template": "image" IMMER "caption" auf den exakten Bildunterschriften-Text von oben
+setzen (kein "src" nötig -- das Tool fügt das passende extrahierte Bild automatisch ein).
+{%- else -%}
+Keine Abbildungen in diesem Kapitel -- keine "sketch"-Blöcke mit "template": "image" nötig,
+reine Diagramm-Sketches (stack/cycle/layers/rings/triangle/timeline/flow) sind trotzdem erlaubt,
+wenn sie einen Sachverhalt aus dem Text besser veranschaulichen als Fließtext.
+{%- endif %}
+
+Antworte AUSSCHLIESSLICH mit einem JSON-Objekt, nichts davor und nichts danach (keine
+Erklärung, kein Markdown-Codeblock, keine Rückfrage). Format exakt:
+{
+  "module": "<Modulname aus dem Skript>",
+  "chapter": {"number": <Kapitelnummer>, "title": "<Kapiteltitel>", "pages": "<Seitenbereich, z.B. 11–32>"},
+  "learning_goals": ["<Lernziel 1>", "..."],
+  "blocks": [
+    {"type": "h2", "text": "...", "page": <n>},
+    {"type": "def", "term": "...", "text": "...", "page": <n>},
+    {"type": "bullets", "items": ["...", "..."]},
+    {"type": "arrowlist", "items": ["...", "..."]},
+    {"type": "vs", "left": {"title": "...", "text": "..."}, "right": {"title": "...", "text": "..."}},
+    {"type": "table", "headers": ["...", "..."], "rows": [["...", "..."], ["...", "..."]]},
+    {"type": "box", "variant": "ora|yel|lav|teal", "label": "...", "text": "..."},
+    {"type": "note", "text": "..."},
+    {"type": "sketch", "template": "stack", "figure": <n oder weglassen>, "items": [{"title": "...", "sub": "..."}]},
+    {"type": "sketch", "template": "layers", "figure": <n oder weglassen>, "items": [{"title": "...", "sub": "...", "anno": "<optional: kurze Randnotiz, z.B. was auf dieser Ebene übertragen wird>"}]},
+    {"type": "sketch", "template": "image", "figure": <n>, "caption": "<exakte Bildunterschrift>"},
+    {"type": "merkliste", "items": ["...", "..."]},
+    {"type": "glossar", "items": [{"term": "...", "text": "..."}]}
+  ]
+}
+
+---
+{{ content }}

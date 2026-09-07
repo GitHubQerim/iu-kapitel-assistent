@@ -1,0 +1,44 @@
+{% macro render_block(block) -%}
+{%- if block.type == "h2" -%}
+  <h2>{{ block.text }}{% if block.page %} <span class="p">S. {{ block.page }}</span>{% endif %}</h2>
+{%- elif block.type == "h3" -%}
+  <h3>{{ block.text }}{% if block.page %} <span class="p">S. {{ block.page }}</span>{% endif %}</h3>
+{%- elif block.type == "def" -%}
+  <div><span class="def">{{ block.term }}</span> = <span class="hy">{{ block.text }}</span>{% if block.page %} <span class="p">S. {{ block.page }}</span>{% endif %}</div>
+{%- elif block.type == "bullets" -%}
+  <ul class="tight small">{% for item in block['items'] %}<li>{{ item }}</li>{% endfor %}</ul>
+{%- elif block.type == "arrowlist" -%}
+  <ul class="arrow-list small">{% for item in block['items'] %}<li>{{ item }}</li>{% endfor %}</ul>
+{%- elif block.type == "vs" -%}
+  <div class="vs">
+    <div><div class="h">{{ block.left.title }}</div><div class="small">{{ block.left.text }}</div></div>
+    <div><div class="h">{{ block.right.title }}</div><div class="small">{{ block.right.text }}</div></div>
+  </div>
+{%- elif block.type == "table" -%}
+  <table class="table-block small">
+    <thead><tr>{% for h in block['headers'] %}<th>{{ h }}</th>{% endfor %}</tr></thead>
+    <tbody>{% for row in block['rows'] %}<tr>{% for cell in row %}<td>{{ cell }}</td>{% endfor %}</tr>{% endfor %}</tbody>
+  </table>
+{%- elif block.type == "box" -%}
+  <div class="box {{ block.variant }}"><span class="label">{{ block.label }}</span>{{ block.text }}</div>
+{%- elif block.type == "note" -%}
+  <div class="note">↳ {{ block.text }}</div>
+{%- elif block.type == "sketch" -%}
+  {{ block._rendered_html | safe }}
+{%- endif -%}
+{%- endmacro %}
+
+{% macro render_footer(merkliste, glossar) -%}
+<div class="bottom-strip">
+  {% if merkliste %}
+  <div class="box lav"><span class="label">Prüfungs-Merkliste in Kürze</span>
+    <div class="small">{{ merkliste['items']|join(" · ") }}</div>
+  </div>
+  {% endif %}
+  {% if glossar %}
+  <div class="box"><span class="label">Glossar</span>
+    <div class="small">{% for item in glossar['items'] %}<b>{{ item.term }}</b> {{ item.text }}{% if not loop.last %} · {% endif %}{% endfor %}</div>
+  </div>
+  {% endif %}
+</div>
+{%- endmacro %}

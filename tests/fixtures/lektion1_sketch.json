@@ -1,0 +1,204 @@
+{
+  "module": "Datenschutz & IT-Sicherheit",
+  "chapter": {"number": 1, "title": "Begriffsbestimmungen und Hintergründe", "pages": "11–32"},
+  "learning_goals": [
+    "was IT ist & wie sie funktioniert",
+    "was Sicherheit vs. Schutz heißt",
+    "was Datenschutz ist & worauf er fußt",
+    "was IT-Sicherheit ist & wie sie zum Datenschutz steht"
+  ],
+  "blocks": [
+    {"type": "h2", "text": "1.1 Informationstechnik (IT)", "page": "13–14"},
+    {"type": "def", "term": "IT", "text": "konkreter Einsatz elektronischer Geräte für Erhebung + Verwendung von Daten durch Menschen oder Maschinen", "page": 13},
+    {"type": "bullets", "items": [
+      "hat immer einen Anwendungsbereich in realer ökonom./sozialer Umgebung: Einzelperson, Firma, Abteilung",
+      "braucht (elektron.) Geräte, meist fest in Arbeitsorganisation eingebunden → orientiert an Geschäftsprozessen",
+      "privat: E-Mail, Chat … Stichworte: „Industrie 4.0“, „Wirtschaft 4.0“"
+    ]},
+    {"type": "sketch", "template": "stack", "figure": 1, "items": [
+      {"title": "INFORMATIONEN", "sub": "Gegenstände unseres Denkens: Fakten, Konzepte, Anweisungen …"},
+      {"title": "DATEN", "sub": "formalisierte Darstellung von Informationen (Glyph, Symbol, Code)"},
+      {"title": "SIGNALE", "sub": "physikal. Darstellung von Daten: Spannung, Strom, Licht, Schall"}
+    ]},
+    {"type": "bullets", "items": [
+      "Daten = formalisierte Darstellung von Sachverhalten/Konzepten/Anweisungen für Übertragung, Speicherung, Verarbeitung",
+      "Information = die Bedeutung, die den Daten aufgrund von Konventionen beigelegt wird",
+      "Signal = Darstellung von Daten durch räuml./zeitl. Veränderung physikal. Größen"
+    ]},
+    {"type": "box", "variant": "ora", "label": "Klausur-Falle", "text": "Der Name „Informationstechnik“ ist eigentlich irreführend: IT befasst sich gar nicht mit Informationen, sondern mit formalisierten Darstellungen (= Daten)!"},
+    {"type": "h3", "text": "Informationsverbund (BSI)", "page": 14},
+    {"type": "def", "term": "Informationsverbund", "text": "konkrete Ausprägung der IT = alle technischen + alle organisatorischen Komponenten des Anwendungsbereichs · technische Komponenten = IT-Infrastruktur"},
+    {"type": "vs",
+      "left": {"title": "technisch (Abb. 2)", "text": "Hardware — Rechengeräte, Netzwerkgeräte, Peripherie, Betriebsgeräte · Software — Firmware, Betriebssystem, Apps · Bauliche Einrichtungen — Räume, Gebäude, Standorte"},
+      "right": {"title": "organisatorisch (Abb. 4)", "text": "Institution — EU-Verordnungen, Gesetze, Standards · Struktur — Geschäftsführung, Betriebsrat, DSB · Personal — Anzahl + Qualifikation"}
+    },
+    {"type": "note", "text": "Aufgabe der Informationssicherheit: alle diese Komponenten angemessen schützen"},
+    {"type": "h3", "text": "Boot & UEFI", "page": 15},
+    {"type": "sketch", "template": "flow", "items": [
+      {"title": "Einschalten"},
+      {"title": "Firmware (Boot, Init.)"},
+      {"title": "OS startet"}
+    ]},
+    {"type": "bullets", "items": [
+      "UEFI (Unified Extensible Firmware Interface) = Schnittstelle Firmware↔OS, ersetzt BIOS",
+      "modular erweiterbar: Netzwerkmodul, DRM, BIOS-Emulation, Bootloader",
+      "Secure Boot: nur ausdrücklich erlaubte Dateien dürfen das OS starten"
+    ]},
+    {"type": "box", "variant": "yel", "label": "Merksatz 1.1", "text": "IT = Geräte + Daten + Anwendungsbereich · Informationsverbund = technisch + organisatorisch · Netz: MAC↔IP↔Port, TCP zuverlässig / UDP schnell"},
+
+    {"type": "h2", "text": "Netzwerke", "page": "15–16"},
+    {"type": "bullets", "items": [
+      "Netzwerkgeräte unterstützen lokale Netze einer Technologie (LAN, WLAN, Bluetooth)",
+      "oder Netzwerke von Netzwerken → heute fast immer TCP/IP"
+    ]},
+    {"type": "h3", "text": "LAN = Ethernet (IEEE 802.3), kabelgebunden"},
+    {"type": "bullets", "items": [
+      "MAC-Adresse: 48 Bit, hexadezimal, z. B. 00-80-41-ae-fd-7e · ff-ff-ff-ff-ff-ff = Broadcast",
+      "Daten in Rahmen (Frame) mit Sender- + Empfänger-MAC → an alle geschickt, nur benannter Empfänger nutzt ihn",
+      "FCFS: Medium frei? → senden → sendet noch jemand? → abbrechen",
+      "Hub: gibt stumpf an alle weiter · Switch: wertet Adressen aus"
+    ]},
+    {"type": "arrowlist", "items": [
+      "WLAN (802.11) = LAN ohne Kabel, Beacons, Ad-hoc oder Infrastruktur-Netz über Access Point, Roaming",
+      "Bluetooth: Piconets, Version 4.x konkurriert mit WLAN"
+    ]},
+    {"type": "h3", "text": "TCP/IP-Protokollfamilie", "page": "16–18"},
+    {"type": "sketch", "template": "layers", "figure": 3, "items": [
+      {"title": "Anwendungsschicht", "sub": "FTP · HTTP · SMTP · DNS · VoIP …", "anno": "Verpackung ↓"},
+      {"title": "Transportschicht", "sub": "TCP (zuverlässig) | UDP (verbindungslos)", "anno": "Paket = Ports + Daten"},
+      {"title": "Internetschicht", "sub": "IP — Router bewegen Datagramme", "anno": "Datagramm = IP-Adr. + Ports + Daten"},
+      {"title": "Netzzugangsschicht", "sub": "Ethernet · Token Bus · 802.11 · Bluetooth · DSL", "anno": "Frame = MAC + IP + Ports + Daten"},
+      {"title": "physikalisch", "sub": "Kupferkabel · Funk · Lichtwellenleiter"}
+    ]},
+    {"type": "bullets", "items": [
+      "IP-Adresse (v4): 32 Bit → 4 Zahlen 0–255 · DNS übersetzt Name→IP, liegt auf DNS-Servern",
+      "Router realisieren IP: schieben Datagramme durch Zwischennetze — verbindungslos: Weg zu komplex? → Datagramm vernichtet",
+      "Router sehen IP+Ports → oft zugleich Firewall"
+    ]},
+    {"type": "vs",
+      "left": {"title": "TCP", "text": "zuverlässig, verbindungsorientiert, Ports fest gekoppelt, verlorene Datagramme werden erneut geschickt"},
+      "right": {"title": "UDP", "text": "verbindungslos, keine Vollständigkeitsgarantie, Bild/Ton/VoIP: Tempo > Vollständigkeit"}
+    },
+    {"type": "note", "text": "Anwendungsprotokolle: FTP, HTTP, SMTP, DNS, VoIP → urspr. ohne Sicherheit gebaut ⇒ gesicherte Varianten: FTPS/SFTP, HTTPS, DNSSEC"},
+
+    {"type": "h2", "text": "Fallbeispiel: Praxis Dr. Heilemacher", "page": "19–22"},
+    {"type": "note", "text": "zieht sich durchs ganze Skript → Rollen & Kürzel merken! (Terminologie nach KBV 2016)"},
+    {"type": "bullets", "items": [
+      "PVS (Praxisverwaltungssystem) = Kernstück, bildet den ganzen Ablauf ab: Patientenakten, Zeit-/Aufgabenplanung, Laborwerte, Berichte/Rezepte, Abrechnung, Leistungsstatistik"
+    ]},
+    {"type": "vs",
+      "left": {"title": "PI / PP", "text": "Praxisinhaber Dr. Heilemacher · Praxispersonal → Zugriff aufs PVS = Zugriff auf Patientendaten"},
+      "right": {"title": "DL / TI", "text": "IT-Dienstleister: Fernwartung übers Internet · Telematik-Infrastruktur für die eGK"}
+    },
+    {"type": "sketch", "template": "image", "figure": 5, "caption": "Abbildung 5: Netzwerktopologie der Praxis Dr. Heilemacher"},
+    {"type": "bullets", "items": [
+      "Kartenterminals hängen als eigenständige Geräte direkt am Netz, nicht am PC",
+      "Backup-Kette: täglich automatisch, wöchentlich manuell außer Haus · PP hat keinen Zugriff auf Archiv",
+      "Räume: R1 Serverraum, R9 Rezeption, R50 Heimbüro PI, R99 Büro DL"
+    ]},
+    {"type": "box", "variant": "lav", "label": "institutionell", "text": "Berufsordnung, Ärztekammer, Krankenversicherungen. Schweigepflicht des Personals — auch über den Tod hinaus"},
+    {"type": "h3", "text": "Randbemerkung: MAC & Hash", "page": 16},
+    {"type": "box", "variant": "ora", "label": "3× MAC — nicht verwechseln!", "text": "Media Access Control (Adresse) · Mandatory Access Control (Zugriffsrechte) · Message Authentication Code (Authentizität + Integrität)"},
+
+    {"type": "h2", "text": "1.2 Sicherheit & Schutz", "page": "23–25"},
+    {"type": "def", "term": "Sicherheit", "text": "Ausmaß der Bestimmtheit + Gewissheit zukünftiger Umstände = Erwartungssicherheit"},
+    {"type": "bullets", "items": [
+      "auf die Zukunft gerichtet, an den Beobachter gebunden, relativ",
+      "Umgang = Intuition + Wahrscheinlichkeit → manchmal Risiko eingehen",
+      "nie absolut → es geht immer um den Umgang mit Restgefahren"
+    ]},
+    {"type": "vs",
+      "left": {"title": "Security", "text": "Sicherheit gegen Einwirkungen → Immunität, Voraussetzung für Safety, Fokus des Skripts"},
+      "right": {"title": "Safety", "text": "Sicherheit der Auswirkungen → Isolation, z. B. Normen für Software in der Luftfahrt"}
+    },
+    {"type": "note", "text": "im Deutschen beides nur „Sicherheit“ ⇒ Sicherheit ≠ Sicherheit (Security != Safety)"},
+    {"type": "def", "term": "Schutz", "text": "alles, was ausdrücklich der Erhöhung der Sicherheit dient, Maßnahmen sind präventiv: psychologisch, technisch, organisatorisch"},
+    {"type": "sketch", "template": "cycle", "figure": 6, "items": [
+      {"title": "Prävention"},
+      {"title": "Detektion", "sub": "Angriffe schnell erkennen"},
+      {"title": "Reaktion", "sub": "Korrektur + Sanktion"}
+    ]},
+    {"type": "h3", "text": "Persönliche Schutzbereiche", "page": 25},
+    {"type": "sketch", "template": "rings", "figure": 7, "items": [
+      {"title": "Individualsphäre"},
+      {"title": "Privatsphäre"},
+      {"title": "Intimsphäre"}
+    ]},
+    {"type": "bullets", "items": [
+      "Intimsphäre — Sexualität, Krankheiten, Gefühle → möglichst absolut geschützt",
+      "Privatsphäre — häuslicher Bereich + Nahestehende, große Sicherheit",
+      "Individualsphäre — frei beobachtbares Leben, trotzdem kein sicherheitsfreier Raum"
+    ]},
+    {"type": "box", "variant": "yel", "label": "Rechtsgrundlage", "text": "Allgemeines Persönlichkeitsrecht (Art. 2 GG) = Recht auf Achtung und Entfaltung der Persönlichkeit"},
+
+    {"type": "h2", "text": "1.3 Datenschutz als Persönlichkeitsrecht", "page": "26–27"},
+    {"type": "box", "variant": "ora", "label": "Begriffs-Falle", "text": "„Datenschutz“ müsste eigentlich Schutz von Daten heißen — meint aber den Schutz des Menschen vor seiner Verdatung ⇒ treffender: „Verdatungsschutz“"},
+    {"type": "sketch", "template": "timeline", "items": [
+      {"title": "1960er", "sub": "Weitergabe|schadet"},
+      {"title": "16.07.1969", "sub": "Mikrozensus|nicht katalog."},
+      {"title": "1970er", "sub": "erste|DS-Gesetze"},
+      {"title": "15.12.1983", "sub": "Volkszählungs-|urteil"},
+      {"title": "27.02.2008", "sub": "IT-Grundrecht"}
+    ]},
+    {"type": "arrowlist", "items": [
+      "Recht auf informationelle Selbstbestimmung: jeder bestimmt grundsätzlich selbst über Preisgabe + Verwendung seiner Daten",
+      "kein „belangloses“ Datum bei automatisierter Verarbeitung",
+      "Bürger müssen wissen wer was wann weiß → Vorrang der Selbstauskunft",
+      "Einschränkungen nur mit ausdrücklicher gesetzlicher Grundlage",
+      "strenge Zweckbindung: kein Sammeln auf Vorrat"
+    ]},
+    {"type": "box", "variant": "yel", "label": "Definition", "text": "Datenschutz = Schutz natürlicher Personen bei Erhebung + Verwendung von Daten, die sie betreffen"},
+    {"type": "bullets", "items": [
+      "personenbezogene Daten = eindeutig oder mittelbar einer natürl. Person zuordenbar",
+      "Betroffener = die bestimmte Person · Verantwortlicher = erhebende Institution"
+    ]},
+    {"type": "box", "variant": "lav", "label": "BVerfG 27.02.2008 → IT-Grundrecht", "text": "Grundrecht auf Vertraulichkeit + Integrität informationstechnischer Systeme"},
+
+    {"type": "h2", "text": "1.4 IT-Sicherheit", "page": "28–29"},
+    {"type": "bullets", "items": [
+      "Sicherheit eines Informationsverbunds = Ausmaß des störungsfreien + gefahrenfreien Betriebs",
+      "Gefahr = jeder Sachverhalt mit negativen materiellen/immateriellen Auswirkungen"
+    ]},
+    {"type": "box", "variant": "yel", "label": "Definition (pragmatisch)", "text": "IT-Sicherheit = Vorhandensein von Vertraulichkeit, Integrität und Verfügbarkeit in einem geplanten Ausmaß"},
+    {"type": "sketch", "template": "triangle", "figure": 8, "items": [
+      {"title": "Vertraulichkeit"},
+      {"title": "Verfügbarkeit"},
+      {"title": "Integrität"}
+    ]},
+    {"type": "bullets", "items": [
+      "Vertraulichkeit: Daten nur Befugten bekannt",
+      "Integrität: Daten richtig, vollständig, aktuell — oder erkennbar nicht",
+      "Verfügbarkeit: Daten + Funktionen dort/dann zugänglich, wo/wann Befugte sie brauchen"
+    ]},
+    {"type": "h2", "text": "1.5 Abgrenzung", "page": "30–31"},
+    {"type": "vs",
+      "left": {"title": "Datenschutz", "text": "schützt die Person, informationelle Selbstbestimmung, Frage: darf erhoben werden?"},
+      "right": {"title": "IT-Sicherheit", "text": "schützt alle Daten, Frage: was tun damit es sicher ist?"}
+    },
+    {"type": "box", "variant": "teal", "label": "Überschneidung", "text": "Patientendaten: Datenschutz und IT-Sicherheit erfüllen oft dieselben Maßnahmen"},
+    {"type": "box", "variant": "ora", "label": "Zielkonflikt", "text": "Login-Protokolle: IT-Sicherheit will erheben + aufbewahren — aber = pbD → grundsätzlich nicht statthaft"},
+
+    {"type": "merkliste", "items": [
+      "IT = Einsatz elektron. Geräte für Daten in realer Umgebung",
+      "Informationsverbund (BSI) = technisch + organisatorisch",
+      "UEFI ersetzt BIOS, Secure Boot",
+      "Ethernet 802.3, MAC 48 Bit, Hub vs. Switch",
+      "TCP/IP-Schichtenmodell, TCP zuverlässig vs. UDP verbindungslos",
+      "Sicherheit = Gewissheit über Zukunft, relativ, nie absolut",
+      "Security ≠ Safety, Prävention → Detektion → Reaktion",
+      "Intim- < Privat- < Individualsphäre",
+      "1983 Volkszählungsurteil: informationelle Selbstbestimmung",
+      "Datenschutz = Schutz natürl. Personen, IT-Sicherheit = V+I+V im geplanten Ausmaß"
+    ]},
+    {"type": "glossar", "items": [
+      {"term": "Informationsverbund", "text": "alle techn. + organisator. Komponenten eines IT-Anwendungsbereichs (BSI)"},
+      {"term": "IT-Infrastruktur", "text": "nur die technischen Komponenten"},
+      {"term": "Datagramm", "text": "Dateneinheit auf IP-Ebene"},
+      {"term": "Port", "text": "koppelt Sender/Empfänger bei TCP"},
+      {"term": "Erwartungssicherheit", "text": "Sicherheit i. S. d. Skripts"},
+      {"term": "Schutzziele", "text": "Aussagen über zu erreichende Sicherheitsniveaus"},
+      {"term": "Betroffener", "text": "Person hinter den personenbezogenen Daten"},
+      {"term": "Verantwortlicher", "text": "erhebende/verwendende Institution"}
+    ]}
+  ]
+}
