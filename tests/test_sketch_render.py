@@ -6,7 +6,7 @@ import pytest
 
 from render.sketch import render_sketch
 from render.sketch.layout import FULL_COLUMN_BUDGET_MM, estimate_block_height_mm, layout_pages
-from render.sketch.svg_templates import TEMPLATES
+from render.sketch.svg_templates import TEMPLATES, render_cycle
 
 FIXTURE_PATH = Path(__file__).parent / "fixtures" / "lektion1_sketch.json"
 
@@ -52,6 +52,27 @@ def test_render_sketch_attaches_leftover_images(tmp_path):
     assert "seite2.jpg" in html
     # das referenzierte Bild darf nicht zusaetzlich im Leftover-Abschnitt auftauchen
     assert html.count("seite1.jpg") == 1
+
+
+def test_render_cycle_wraps_long_sub_labels(tmp_path):
+    """Regression: laengere 'sub'-Saetze (z.B. PDCA-Zyklus) liefen bisher als eine lange Zeile
+    ueber Nachbarknoten/die Mittelbeschriftung hinweg, statt auf Boxbreite umzubrechen."""
+    block = {
+        "type": "sketch", "template": "cycle", "figure": 9,
+        "items": [
+            {"title": "Plan", "sub": "ISMS festlegen: Leitlinie + Ziele"},
+            {"title": "Do", "sub": "Maßnahmen umsetzen & betreiben"},
+            {"title": "Check", "sub": "Leistung & Wirksamkeit überwachen/überprüfen"},
+            {"title": "Act", "sub": "Instandhalten + ständig verbessern (objektive Messungen)"},
+        ],
+    }
+    svg = render_cycle(block)
+    # Der laengste Satz (Act) muss auf mehrere <text>-Zeilen umgebrochen sein, nicht als eine
+    # durchgehende Zeile auftauchen.
+    assert "Instandhalten + ständig verbessern (objektive Messungen)" not in svg
+    assert svg.count("<text") > 4 + 4  # 4 Titel + 4 Ein-Wort-Captions waeren ohne Umbruch da
+    # Der SVG-Rahmen muss fuer die zusaetzlichen Zeilen mitgewachsen sein (Default war 118).
+    assert 'viewBox="0 0 300 118"' not in svg
 
 
 def test_render_sketch_writes_two_pages(tmp_path, fixture_data):

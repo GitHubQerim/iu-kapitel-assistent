@@ -10,12 +10,21 @@ Die Funktionen bilden den Look bewusst *parametrisch* nach, nicht Pixel-fuer-Pix
 zur Referenz -- siehe Plan-Hinweis zur manuellen visuellen Abnahme.
 """
 import html
+import textwrap
 
 FILL_CYCLE = ["fla", "fl", "fy", "fo", "fw"]
 
 TEMPLATES = (
     "stack", "cycle", "layers", "rings", "triangle", "timeline", "flow", "image",
 )
+
+# Fuer render_cycle(): "sub"-Beschriftungen wurden bisher als EIN <text>-Element ohne
+# Zeilenumbruch gerendert -- bei laengeren Saetzen (die die KI trotz kurzer Titel gern
+# hinschreibt, z.B. "Instandhalten + staendig verbessern (objektive Messungen)") lief der
+# Text weit ueber die eigene Box hinaus und ueberlappte Nachbarknoten/die Mittelbeschriftung.
+# Empirisch kalibrierter Wert (Schriftgroesse 6.8pt in dieser Schriftart).
+CYCLE_SUB_PX_PER_CHAR = 3.3
+CYCLE_SUB_LINE_HEIGHT = 7.5
 
 
 def _esc(text) -> str:
@@ -120,10 +129,11 @@ def render_cycle(block: dict) -> str:
     box_widths = [max(60, 8 * len(item.get("title", ""))) for item in items]
 
     boxes, texts, paths = [], [], []
+    max_sub_lines = 1
     for i, item in enumerate(items):
         x, y = positions[i]
         title = _esc(item.get("title", ""))
-        sub = _esc(item.get("sub", ""))
+        sub_raw = item.get("sub", "")
         box_w = box_widths[i]
         fill = FILL_CYCLE[i % len(FILL_CYCLE)]
         boxes.append(
@@ -131,8 +141,17 @@ def render_cycle(block: dict) -> str:
             f'width="{box_w:.0f}" height="{box_h}" rx="6"/>'
         )
         texts.append(f'<text x="{x:.0f}" y="{y + 4:.0f}" text-anchor="middle" class="st" font-size="11">{title}</text>')
-        if sub:
-            texts.append(f'<text x="{x:.0f}" y="{y + box_h / 2 + 9:.0f}" text-anchor="middle" font-size="6.8">{sub}</text>')
+        if sub_raw:
+            # Auf die Box-Breite umbrechen statt als eine lange Zeile zu rendern -- sonst
+            # laeuft der Text bei laengeren Saetzen ueber Nachbarknoten/Mittelbeschriftung
+            # hinweg (siehe Modul-Docstring, CYCLE_SUB_PX_PER_CHAR).
+            chars_per_line = max(10, int(box_w / CYCLE_SUB_PX_PER_CHAR))
+            lines = textwrap.wrap(sub_raw, width=chars_per_line) or [sub_raw]
+            max_sub_lines = max(max_sub_lines, len(lines))
+            start_y = y + box_h / 2 + 9
+            for li, line in enumerate(lines):
+                line_y = start_y + li * CYCLE_SUB_LINE_HEIGHT
+                texts.append(f'<text x="{x:.0f}" y="{line_y:.0f}" text-anchor="middle" font-size="6.8">{_esc(line)}</text>')
 
     for i in range(n):
         x1, y1 = positions[i]
@@ -163,8 +182,12 @@ def render_cycle(block: dict) -> str:
 
     figure = block.get("figure")
     caption = f'<text x="{cx}" y="{cy}" text-anchor="middle" class="cap" font-size="9">Abb. {_esc(figure)}</text>' if figure is not None else ""
+    # Zusaetzliche Hoehe fuer mehrzeilige "sub"-Labels einrechnen (siehe oben) -- betrifft vor
+    # allem den untersten Knoten, dessen Text sonst ueber den festen 118px-Rahmen hinauslief.
+    extra_height = (max_sub_lines - 1) * CYCLE_SUB_LINE_HEIGHT
+    total_height = 118 + extra_height + (4 if extra_height else 0)
     svg = (
-        f'<svg class="sk w75" viewBox="0 0 300 118">'
+        f'<svg class="sk w75" viewBox="0 0 300 {total_height:.0f}">'
         f'{_wobble("".join(paths) + "".join(boxes))}{"".join(texts)}{caption}</svg>'
     )
     return _wrap("cycle", figure, svg)
