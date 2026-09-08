@@ -306,7 +306,13 @@ def make_sketch_image_resolver(saved_images, out_dir: Path):
     da die KI hier nur eine Zahl abschreiben muss) — die Bildunterschrift dient nur als
     Fallback, falls "figure" fehlt (gleiches Prinzip wie bei place_images_inline()/
     attach_images_to_cards(), dort nur mit Caption statt Nummer, weil es dort kein separates
-    Nummernfeld gibt)."""
+    Nummernfeld gibt).
+
+    resolve.get_leftover_images() liefert danach die Bilder, die die KI in KEINEM
+    "sketch"-Block referenziert hat (weder über "figure" noch "caption") -- render_sketch()
+    hängt diese als eigenen Abschnitt an, statt sie stillschweigend zu verwerfen (die KI
+    entscheidet zwar pro Abbildung Skizze-vs-Bild, kann eine Abbildung aber auch komplett
+    übersehen/ignorieren, siehe Prompt in sketch_summary.md.j2)."""
     pool = _build_image_pool(saved_images)
 
     def resolve(caption, figure=None):
@@ -324,6 +330,10 @@ def make_sketch_image_resolver(saved_images, out_dir: Path):
         _, _, img_path, _ = match
         return str(img_path.relative_to(out_dir))
 
+    def get_leftover_images():
+        return [item["entry"] for item in pool if not item["used"]]
+
+    resolve.get_leftover_images = get_leftover_images
     return resolve
 
 
@@ -892,13 +902,15 @@ def _cmd_summary_sketch(args):
     image_resolver = make_sketch_image_resolver(saved_images, out_path.parent)
 
     from render.sketch import render_sketch, render_sketch_pdf
-    render_sketch(data, out_path, image_resolver=image_resolver)
+    _, layout_warning = render_sketch(data, out_path, image_resolver=image_resolver)
     pdf_path, pdf_hint = render_sketch_pdf(out_path)
 
     open_in_browser(out_path)
     record_sketch(out_path, pdf_paths)
 
     print(f"Sketch-Lernblatt gespeichert: {out_path}")
+    if layout_warning:
+        print(f"⚠️  {layout_warning}")
     if pdf_path:
         print(f"PDF-Export: {pdf_path}")
     elif pdf_hint:

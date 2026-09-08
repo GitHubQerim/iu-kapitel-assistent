@@ -137,10 +137,12 @@ class Api:
             if mode == "flashcards":
                 name = deck_name or default_deck_name(pdf_paths[0])
                 message, label = self._build_flashcards(response, image_pages, out_path, name, pdf_paths)
+                layout_warning = None
             elif mode == "sketch":
-                message, label = self._build_sketch(response, image_pages, out_path, pdf_paths)
+                message, label, layout_warning = self._build_sketch(response, image_pages, out_path, pdf_paths)
             else:
                 message, label = self._build_summary(response, image_pages, out_path, pdf_paths, options)
+                layout_warning = None
         except ValueError as exc:
             return {
                 "ok": False,
@@ -150,7 +152,11 @@ class Api:
 
         self.pending = None
         self.last_output_path = str(out_path)
-        return {"ok": True, "message": message, "out_path": str(out_path), "label": label}
+        result = {"ok": True, "message": message, "out_path": str(out_path), "label": label}
+        if layout_warning:
+            # Kurzfassung fuer die UI (erste Zeile) -- der volle Traceback landet im Terminal-Log.
+            result["warning"] = layout_warning.splitlines()[0]
+        return result
 
     def reveal_output(self):
         if self.last_output_path and Path(self.last_output_path).exists():
@@ -232,13 +238,15 @@ class Api:
         out_path = organize_chapter_output(out_path, pdf_paths)
         saved_images = save_chapter_images(image_pages, out_path.parent / f"{out_path.stem}_bilder")
         resolver = make_sketch_image_resolver(saved_images, out_path.parent)
-        render_sketch(data, out_path, image_resolver=resolver)
+        _, layout_warning = render_sketch(data, out_path, image_resolver=resolver)
         pdf_path, pdf_hint = render_sketch_pdf(out_path)
         open_in_browser(out_path)
         label = record_sketch(out_path, pdf_paths)
         message = "Sketch-Lernblatt gespeichert. HTML-Ansicht geöffnet."
         message += f" PDF-Export: {pdf_path.name}." if pdf_path else f" {pdf_hint}"
-        return message, label
+        if layout_warning:
+            print(layout_warning)  # voller Traceback im Terminal, Kurzfassung geht an die UI
+        return message, label, layout_warning
 
 
 if __name__ == "__main__":

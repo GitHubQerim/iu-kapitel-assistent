@@ -36,6 +36,15 @@ COLUMN_GAP_MM = 6
 COLUMN_WIDTH_MM = (PAGE_WIDTH_MM - 2 * PAGE_SIDE_PADDING_MM - 2 * COLUMN_GAP_MM) / 3
 FOOTER_WIDTH_MM = PAGE_WIDTH_MM - 2 * PAGE_SIDE_PADDING_MM
 
+# CHARS_PER_LINE gilt fuer die volle Spaltenbreite (COLUMN_WIDTH_MM) -- daraus eine
+# Zeichen-pro-mm-Rate ableiten, um schmalere Kontexte (z.B. Tabellenzellen) korrekt
+# umzurechnen (siehe _table_height_mm()).
+CHARS_PER_MM = CHARS_PER_LINE / COLUMN_WIDTH_MM
+# Tabellenzeile: Padding (.8mm top+bottom) + Border -- Ueberschlag pro Zeile zusaetzlich zur
+# reinen Textzeilenhoehe.
+TABLE_ROW_PADDING_MM = 2.0
+TABLE_MIN_CHARS_PER_LINE = 8
+
 FULL_COLUMN_BUDGET_MM = PAGE_HEIGHT_MM - PAGE_HEADER_MM - PAGE_PADDING_MM
 BLOCK_GAP_MM = 2  # .col{gap:2mm} -- zaehlt zwischen Bloecken, siehe _flow_into_pages()
 ORPHAN_HEADING_THRESHOLD_MM = 24
@@ -56,9 +65,35 @@ SKETCH_SCALING_HEIGHT_MM = {
 }
 
 
-def _line_count(text: str) -> int:
+def _line_count(text: str, chars_per_line: int = CHARS_PER_LINE) -> int:
     length = len(text or "")
-    return max(1, -(-length // CHARS_PER_LINE))  # ceil division
+    return max(1, -(-length // chars_per_line))  # ceil division
+
+
+def _table_height_mm(block: dict) -> float:
+    """Tabellenhoehe: anders als bullets/def/box wurde hier bisher NUR die Zeilenanzahl
+    gezaehlt (rows * Fixwert), unabhaengig von der Zellen-Textlaenge -- bei mehrzeiligen
+    Zellen (lange Fliesstext-Saetze) fuehrte das zu drastischer Unterschaetzung (empirisch:
+    5x zu klein bei einer 3-spaltigen 14-Zeilen-Tabelle mit Fliesstext-Zellen). Rechnet nun
+    pro Zeile den noetigen Zeilenumbruch je Zelle mit, analog zu MM_PER_LINE anderswo, aber
+    mit einer an die (schmalere) Zellenbreite angepassten chars_per_line-Rate statt der vollen
+    Spaltenbreite."""
+    headers = block.get("headers") or []
+    rows = block.get("rows") or []
+    num_cols = len(headers) or (len(rows[0]) if rows else 1)
+    col_width_mm = COLUMN_WIDTH_MM / max(num_cols, 1)
+    chars_per_line = max(TABLE_MIN_CHARS_PER_LINE, round(col_width_mm * CHARS_PER_MM))
+
+    def _row_height(cells) -> float:
+        lines = max((_line_count(str(c), chars_per_line) for c in cells), default=1)
+        return TABLE_ROW_PADDING_MM + lines * MM_PER_LINE
+
+    total = 2.0  # Aussenabstand des Tabellen-Blocks (margin in .table-block)
+    if headers:
+        total += _row_height(headers)
+    for row in rows:
+        total += _row_height(row)
+    return total
 
 
 def estimate_block_height_mm(block: dict) -> float:
@@ -88,8 +123,11 @@ def _raw_estimate_mm(block: dict) -> float:
     if btype == "note":
         return 4 + _line_count(block.get("text", "")) * MM_PER_LINE * 0.7
     if btype == "table":
-        rows = block.get("rows") or []
-        return 6 + len(rows) * 4.5
+        # _table_height_mm() rechnet direkt eine realistische Hoehe (kalibriert an einer echten
+        # Playwright-Messung, siehe Docstring dort) statt einer rohen Ueberschaetzung -- durch
+        # CALIBRATION_FACTOR dividieren, damit die globale Multiplikation unten sie nicht
+        # nochmal kuenstlich verkleinert.
+        return _table_height_mm(block) / CALIBRATION_FACTOR
     if btype == "sketch":
         template = block.get("template", "image")
         if template in SKETCH_SCALING_HEIGHT_MM:

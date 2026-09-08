@@ -16,28 +16,66 @@ def fixture_data():
     return json.loads(FIXTURE_PATH.read_text(encoding="utf-8"))
 
 
+def test_render_sketch_attaches_leftover_images(tmp_path):
+    """Bilder, die die KI in keinem 'sketch'-Block referenziert hat, muessen als eigener
+    Abschnitt angehaengt werden statt zu verschwinden (siehe
+    kapitel_assistent.make_sketch_image_resolver()/get_leftover_images())."""
+    from kapitel_assistent import make_sketch_image_resolver
+
+    bilder_dir = tmp_path / "bilder"
+    bilder_dir.mkdir()
+    referenced_img = bilder_dir / "seite1.jpg"
+    referenced_img.write_bytes(b"x")
+    leftover_img = bilder_dir / "seite2.jpg"
+    leftover_img.write_bytes(b"x")
+
+    saved_images = [
+        (Path("kapitel.pdf"), 1, referenced_img, "Abbildung 1: Referenziert"),
+        (Path("kapitel.pdf"), 2, leftover_img, "Abbildung 2: Nicht referenziert"),
+    ]
+    resolver = make_sketch_image_resolver(saved_images, tmp_path)
+
+    data = {
+        "module": "Testmodul",
+        "chapter": {"number": 1, "title": "Test", "pages": "1-2"},
+        "learning_goals": ["Ziel eins"],
+        "blocks": [
+            {"type": "h2", "text": "Abschnitt"},
+            {"type": "sketch", "template": "image", "figure": 1, "caption": "Abbildung 1: Referenziert"},
+            {"type": "merkliste", "items": ["Kurz"]},
+            {"type": "glossar", "items": [{"term": "X", "text": "Y"}]},
+        ],
+    }
+    out, _ = render_sketch(data, tmp_path / "lernblatt.html", image_resolver=resolver)
+    html = out.read_text(encoding="utf-8")
+    assert "Weitere Abbildungen aus diesem Kapitel" in html
+    assert "seite2.jpg" in html
+    # das referenzierte Bild darf nicht zusaetzlich im Leftover-Abschnitt auftauchen
+    assert html.count("seite1.jpg") == 1
+
+
 def test_render_sketch_writes_two_pages(tmp_path, fixture_data):
-    out = render_sketch(fixture_data, tmp_path / "lernblatt.html")
+    out, _ = render_sketch(fixture_data, tmp_path / "lernblatt.html")
     html = out.read_text(encoding="utf-8")
     assert len(re.findall(r'<section class="page(?: compact)?">', html)) == 2
 
 
 def test_render_sketch_covers_all_templates(tmp_path, fixture_data):
-    out = render_sketch(fixture_data, tmp_path / "lernblatt.html")
+    out, _ = render_sketch(fixture_data, tmp_path / "lernblatt.html")
     html = out.read_text(encoding="utf-8")
     found = set(re.findall(r'data-sketch="([a-z]+)"', html))
     assert set(TEMPLATES) <= found
 
 
 def test_render_sketch_has_footer_strip_only_on_last_page(tmp_path, fixture_data):
-    out = render_sketch(fixture_data, tmp_path / "lernblatt.html")
+    out, _ = render_sketch(fixture_data, tmp_path / "lernblatt.html")
     html = out.read_text(encoding="utf-8")
     assert html.count("Prüfungs-Merkliste in Kürze") == 1
     assert html.count(">Glossar<") == 1
 
 
 def test_render_sketch_without_image_resolver_shows_placeholder(tmp_path, fixture_data):
-    out = render_sketch(fixture_data, tmp_path / "lernblatt.html", image_resolver=None)
+    out, _ = render_sketch(fixture_data, tmp_path / "lernblatt.html", image_resolver=None)
     html = out.read_text(encoding="utf-8")
     assert "Bild fehlt" in html
 
@@ -56,7 +94,7 @@ def test_render_sketch_sparse_last_page_gets_compact_class(tmp_path):
             {"type": "glossar", "items": [{"term": "X", "text": "Y"}]},
         ],
     }
-    out = render_sketch(sparse_data, tmp_path / "lernblatt.html")
+    out, _ = render_sketch(sparse_data, tmp_path / "lernblatt.html")
     html = out.read_text(encoding="utf-8")
     assert 'class="page compact"' in html
 
@@ -73,7 +111,7 @@ def test_render_sketch_renders_table_block(tmp_path):
             {"type": "glossar", "items": [{"term": "X", "text": "Y"}]},
         ],
     }
-    out = render_sketch(data, tmp_path / "lernblatt.html")
+    out, _ = render_sketch(data, tmp_path / "lernblatt.html")
     html = out.read_text(encoding="utf-8")
     assert "<table class=\"table-block" in html
     assert "Art. 15" in html and "Löschung" in html
@@ -85,7 +123,7 @@ def test_render_sketch_falls_back_without_playwright(tmp_path, fixture_data, mon
     import sys
 
     monkeypatch.setitem(sys.modules, "playwright", None)
-    out = render_sketch(fixture_data, tmp_path / "lernblatt.html")
+    out, _ = render_sketch(fixture_data, tmp_path / "lernblatt.html")
     assert out.exists()
 
 
@@ -131,7 +169,7 @@ def test_render_sketch_large_glossary_does_not_overflow_page(tmp_path):
     playwright_sync_api = pytest.importorskip("playwright.sync_api")
 
     data = _sketch_data_with_glossary(n_terms=18, repeat=1)
-    out = render_sketch(data, tmp_path / "lernblatt.html")
+    out, _ = render_sketch(data, tmp_path / "lernblatt.html")
     strip_bottom, page_bottom, _ = _footer_vs_page_bottom_px(playwright_sync_api, out)
 
     assert strip_bottom <= page_bottom + 1, (
@@ -148,7 +186,7 @@ def test_render_sketch_extreme_glossary_gets_dedicated_page(tmp_path):
     playwright_sync_api = pytest.importorskip("playwright.sync_api")
 
     data = _sketch_data_with_glossary(n_terms=40, repeat=3)
-    out = render_sketch(data, tmp_path / "lernblatt.html")
+    out, _ = render_sketch(data, tmp_path / "lernblatt.html")
     html = out.read_text(encoding="utf-8")
     assert 'class="page compact"' in html  # eigene Seite, Grid leer -> compact
 
@@ -157,7 +195,7 @@ def test_render_sketch_extreme_glossary_gets_dedicated_page(tmp_path):
 
 
 def test_render_sketch_offline_no_external_requests(tmp_path, fixture_data):
-    out = render_sketch(fixture_data, tmp_path / "lernblatt.html")
+    out, _ = render_sketch(fixture_data, tmp_path / "lernblatt.html")
     html = out.read_text(encoding="utf-8")
     assert "fonts.googleapis.com" not in html
     assert "http://" not in html and "https://" not in html
