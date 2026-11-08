@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Erzeugt Zusammenfassungen oder Anki-Karteikarten aus Kapitel-PDFs per Copy&Paste in ein KI-Chat-Tool deiner Wahl (ChatGPT, Claude, Gemini, ...)."""
 import argparse
+import hashlib
 import html
 import json
 import re
@@ -905,11 +906,22 @@ def _cmd_summary_sketch(args):
         print(pdf_hint)
 
 
+def stable_id(text: str) -> int:
+    """Deterministische Anki-ID aus einem Namen.
+
+    Pythons eingebautes hash() ist für Strings pro Prozess zufällig gesalzen
+    (PYTHONHASHSEED) -- zwei Läufe mit demselben deck_name würden damit zwei
+    verschiedene IDs ergeben, Anki könnte ein neu generiertes Deck dann nicht
+    mehr als Update desselben Decks erkennen, sondern legt ein zweites an.
+    """
+    return int(hashlib.sha256(text.encode("utf-8")).hexdigest(), 16) % (10**10)
+
+
 def build_flashcards_deck(cards, image_pages, out_path: Path, deck_name: str):
     import genanki
 
-    deck_id = abs(hash(deck_name)) % (10**10)
-    model_id = abs(hash(deck_name + "_model")) % (10**10)
+    deck_id = stable_id(deck_name)
+    model_id = stable_id(deck_name + "_model")
 
     model = genanki.Model(
         model_id,
