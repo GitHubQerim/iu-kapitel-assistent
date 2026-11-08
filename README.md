@@ -74,6 +74,30 @@ Font-/CSS-Änderungen nötig) — und es wird zusätzlich automatisch ein PDF (A
 exportiert. Ohne playwright fällt beides auf eine grobe Heuristik zurück (Spaltenfüllung
 weniger exakt, kein automatischer PDF-Export, im Browser weiterhin Cmd+P → "Als PDF sichern").
 
+### Skript-/Agenten-Nutzung (ohne Zwischenablage)
+
+Statt in ein Chat-Tool zu wechseln, kann eine KI/ein Skript den Prompt auch direkt
+beantworten: `--prompt-out <datei>` schreibt nur den Prompt in eine Datei und beendet den
+Befehl sofort; ein zweiter Aufruf mit denselben Argumenten plus `--response-file <datei>`
+liest die fertige Antwort aus einer Datei statt aus der Zwischenablage, ganz ohne
+interaktives Warten:
+
+```bash
+python3 kapitel_assistent.py flashcards kapitel_1.pdf --out karteikarten.apkg --prompt-out prompt.txt
+# Antwort erzeugen und nach response.json schreiben ...
+python3 kapitel_assistent.py flashcards kapitel_1.pdf --out karteikarten.apkg --response-file response.json
+```
+
+Funktioniert genauso bei `summary` (auch mit `--mode sketch`). `--no-open` unterdrückt
+dabei das automatische Öffnen im Browser, praktisch bei mehreren automatisierten Aufrufen
+nacheinander.
+
+### Karteikarten-Vorschau
+
+Nach dem Erzeugen der Karteikarten öffnet sich automatisch eine einfache HTML-Vorschau
+(jede Karte als aufklappbare Frage/Antwort, inkl. Bilder) im Browser — man sieht so, wie
+die Karten aussehen, ohne dafür erst Anki zu öffnen. Mit `--no-open` abschaltbar.
+
 ### GUI
 
 ```bash
@@ -89,8 +113,10 @@ python3 -m pip install -r requirements-dev.txt
 python3 -m pytest tests/
 ```
 
-Deckt aktuell den Sketch-Renderer ab (Schema-Validierung + Struktur-Checks gegen die
-Referenz-Fixture `tests/fixtures/lektion1_sketch.json`, kein Pixel-Vergleich).
+Deckt den Sketch-Renderer ab (Schema-Validierung + Struktur-Checks gegen die
+Referenz-Fixture `tests/fixtures/lektion1_sketch.json`, kein Pixel-Vergleich), die
+Kapitel-Ordner-Organisation, die stabilen Anki-IDs, den `--prompt-out`/`--response-file`-
+Ablauf und die Karteikarten-Vorschau.
 
 ## Lizenz
 
