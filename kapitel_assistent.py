@@ -948,7 +948,61 @@ def stable_id(text: str) -> int:
     return int(hashlib.sha256(text.encode("utf-8")).hexdigest(), 16) % (10**10)
 
 
-def build_flashcards_deck(cards, image_pages, out_path: Path, deck_name: str):
+FLASHCARDS_PREVIEW_TEMPLATE = """<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Karteikarten-Vorschau · @@DECK@@</title>
+<style>
+  body{ font-family:-apple-system,system-ui,sans-serif; max-width:680px; margin:40px auto;
+        padding:0 20px; color:#222; background:#fff; }
+  h1{ font-size:21px; margin-bottom:4px; }
+  .count{ color:#666; margin-bottom:24px; font-size:14px; }
+  details{ border:1px solid #ddd; border-radius:8px; margin-bottom:10px; padding:12px 16px; }
+  summary{ cursor:pointer; font-weight:600; }
+  summary::-webkit-details-marker{ color:#0E7C66; }
+  .back{ margin-top:10px; padding-top:10px; border-top:1px solid #eee; }
+  .back img{ max-width:100%; border-radius:4px; }
+</style>
+</head>
+<body>
+<h1>@@DECK@@</h1>
+<p class="count">@@COUNT@@ Karte(n) — zum Aufdecken klicken.</p>
+@@CARDS@@
+</body>
+</html>
+"""
+
+IMG_SRC_RE = re.compile(r'<img src="([^"]+)">')
+
+
+def render_flashcards_html(cards, deck_name: str, bilder_dirname: str) -> str:
+    """Rendert eine Vorschau der fertigen Karten als eigenständige HTML-Seite, damit man
+    sich das Ergebnis ansehen kann, ohne dafür erst Anki zu öffnen (v.a. nützlich beim
+    manuellen Copy&Paste-Ablauf, um VOR dem .apkg-Import zu sehen, wie die Karten
+    aussehen). Die "back"-Felder enthalten bereits fertiges HTML (ggf. mit
+    <img src="dateiname.jpg">, siehe attach_images_to_cards()) -- für die Vorschau wird
+    davor nur der Bilder-Unterordner eingefügt, denn im .apkg selbst liegen die Bilder
+    flach (Anki kennt keine Unterordner in seinen Medien)."""
+    def with_bilder_prefix(back: str) -> str:
+        return IMG_SRC_RE.sub(rf'<img src="{bilder_dirname}/\1">', back)
+
+    items = "\n".join(
+        f'<details><summary>{i}. {card["front"]}</summary>'
+        f'<div class="back">{with_bilder_prefix(card["back"])}</div></details>'
+        for i, card in enumerate(cards, start=1)
+    )
+
+    out = FLASHCARDS_PREVIEW_TEMPLATE
+    out = out.replace("@@DECK@@", html.escape(deck_name))
+    out = out.replace("@@COUNT@@", str(len(cards)))
+    out = out.replace("@@CARDS@@", items)
+    return out
+
+
+def build_flashcards_deck(cards, image_pages, out_path: Path, deck_name: str,
+                           preview_path: Path = None):
     import genanki
 
     deck_id = stable_id(deck_name)
@@ -975,14 +1029,21 @@ def build_flashcards_deck(cards, image_pages, out_path: Path, deck_name: str):
         deck.add_note(genanki.Note(model=model, fields=[card["front"], card["back"]]))
 
     media_files = [str(p) for p in embedded_paths]
+    extra_cards = []
     for pdf_path, page_num, img_path, caption in leftover_images:
         front = caption or f"Bild – {pdf_path.stem}, Seite {page_num}"
-        deck.add_note(genanki.Note(model=model, fields=[front, f'<img src="{img_path.name}">']))
+        back = f'<img src="{img_path.name}">'
+        deck.add_note(genanki.Note(model=model, fields=[front, back]))
         media_files.append(str(img_path))
+        extra_cards.append({"front": front, "back": back})
 
     package = genanki.Package(deck)
     package.media_files = media_files
     package.write_to_file(str(out_path))
+
+    if preview_path is not None:
+        preview_html = render_flashcards_html(cards + extra_cards, deck_name, f"{out_path.stem}_bilder")
+        preview_path.write_text(preview_html, encoding="utf-8")
 
     return len(cards), len(embedded_paths), len(leftover_images)
 
@@ -996,10 +1057,16 @@ def cmd_flashcards(args):
 
     deck_name = args.deck or pdf_paths[0].parent.name or pdf_paths[0].stem
     out_path = organize_chapter_output(Path(args.out), pdf_paths)
-    total, with_image, extra_image_cards = build_flashcards_deck(cards, image_pages, out_path, deck_name)
+    preview_path = out_path.with_suffix(".preview.html") if args.open_browser else None
+    total, with_image, extra_image_cards = build_flashcards_deck(
+        cards, image_pages, out_path, deck_name, preview_path=preview_path,
+    )
     record_flashcards(out_path, deck_name)
 
     print(f"{total} Karteikarte(n) ({with_image} mit Bild) + {extra_image_cards} zusätzliche Bild-Karte(n) gespeichert: {out_path}")
+    if preview_path is not None:
+        open_in_browser(preview_path)
+        print(f"Vorschau geöffnet: {preview_path}")
 
 
 def cmd_import(args):
