@@ -350,13 +350,21 @@ def save_chapter_images(all_image_pages, out_dir: Path):
 
 
 def organize_chapter_output(out_path: Path, pdf_paths) -> Path:
-    """Legt einen Kapitel-Unterordner an (Name = prettify_stem(out_path.stem)) und verschiebt
-    die Quell-PDFs hinein, damit PDF, Zusammenfassung/Karteikarten, Bilder und HTML-Ansicht
-    eines Kapitels nicht mehr flach im Modulordner verstreut sind.
+    """Legt einen Kapitel-Unterordner an (Name = prettify_stem(pdf_paths[0].stem)) und
+    verschiebt die Quell-PDFs hinein, damit PDF, Zusammenfassung/Karteikarten, Bilder und
+    HTML-Ansicht eines Kapitels nicht mehr flach im Modulordner verstreut sind.
+
+    Der Ordnername kommt bewusst vom ERSTEN PDF, nicht von out_path.stem: ruft man für
+    dieselbe PDF nacheinander summary und flashcards mit ihren jeweiligen Standard-
+    Ausgabenamen auf ("zusammenfassung.md" bzw. "karteikarten.apkg"), landen sie sonst in
+    zwei verschiedenen Geschwister-Ordnern ("Zusammenfassung"/"Karteikarten") statt
+    zusammen im selben Kapitel-Ordner. pdf_paths[0] ist dabei immer der ursprüngliche,
+    unverschobene Pfad aus den CLI-Argumenten -- resolve_pdf_path() findet die Datei auch,
+    wenn ein vorheriger Aufruf sie inzwischen in genau diesen Ordner verschoben hat.
 
     Idempotent: eine PDF, die schon im Zielordner liegt, wird nicht erneut verschoben.
     """
-    folder = out_path.parent / prettify_stem(out_path.stem)
+    folder = pdf_paths[0].parent / prettify_stem(pdf_paths[0].stem)
     folder.mkdir(parents=True, exist_ok=True)
     for pdf_path in pdf_paths:
         resolved = resolve_pdf_path(pdf_path)
