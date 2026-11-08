@@ -806,13 +806,31 @@ def is_unchanged_prompt(response: str, prompt: str) -> bool:
     return response.strip() == prompt.strip()
 
 
-def prompt_and_wait(prompt: str, kind: str, parse_fn=lambda r: r):
+def prompt_and_wait(prompt: str, kind: str, parse_fn=lambda r: r,
+                     prompt_out: Path = None, response_file: Path = None):
     """Kopiert den Prompt in die Zwischenablage und wartet auf eine gültige Antwort.
 
     Bei einem Parse-Fehler wird NICHT abgebrochen: der Prompt bleibt in der
     Zwischenablage, man kann die Antwort im Chat-Tool korrigieren, neu kopieren
     und es erneut versuchen, ohne den ganzen Befehl neu starten zu müssen.
+
+    Für Skripte/KI-Agenten (ohne Mensch, der Zwischenablage hin- und herkopiert) gibt es
+    zwei Ausstiege aus dem interaktiven Ablauf, die einen Zwei-Phasen-Aufruf erlauben:
+    --prompt-out schreibt NUR den Prompt in eine Datei und beendet den Befehl sofort
+    (nichts wird gewartet/verarbeitet); ein zweiter Aufruf mit denselben Argumenten plus
+    --response-file liest die fertige Antwort aus einer Datei statt aus der Zwischenablage.
     """
+    if prompt_out is not None:
+        prompt_out.write_text(prompt, encoding="utf-8")
+        print(f"Prompt geschrieben nach {prompt_out} (kein Zwischenablage-Warten).")
+        raise SystemExit(0)
+
+    if response_file is not None:
+        response = response_file.read_text(encoding="utf-8").strip()
+        if not response:
+            raise SystemExit(f"--response-file ist leer: {response_file}")
+        return parse_fn(response)
+
     copy_to_clipboard(prompt)
     print(f"Prompt in die Zwischenablage kopiert ({kind}).")
     print("1) Füge ihn in ChatGPT/Claude/Gemini (o.ä.) ein  2) warte die Antwort ab  3) kopiere NUR die Antwort")
@@ -849,7 +867,8 @@ def _cmd_summary_classic(args):
     captions = collect_all_captions(image_pages)
     prompt = build_summary_prompt(content, captions, detail_level=args.detail,
                                    include_glossary=args.glossar)
-    response = prompt_and_wait(prompt, "Zusammenfassung")
+    response = prompt_and_wait(prompt, "Zusammenfassung",
+                                prompt_out=args.prompt_out, response_file=args.response_file)
 
     out_path = organize_chapter_output(Path(args.out), pdf_paths)
     saved_images = save_chapter_images(image_pages, out_path.parent / f"{out_path.stem}_bilder")
@@ -867,7 +886,8 @@ def _cmd_summary_classic(args):
 
     html_path = out_path.with_suffix(".html")
     html_path.write_text(render_summary_html(full_md, [p.name for p in pdf_paths]), encoding="utf-8")
-    open_in_browser(html_path)
+    if args.open_browser:
+        open_in_browser(html_path)
     record_summary(out_path, html_path, pdf_paths, detail_level=args.detail,
                     has_images=any_images_found(image_pages), has_glossary=args.glossar)
 
@@ -875,7 +895,8 @@ def _cmd_summary_classic(args):
     if saved_images:
         placed = len(saved_images) - len(leftover_images)
         print(f"{placed} Bild(er) im Text platziert, {len(leftover_images)} zusätzlich angehängt.")
-    print(f"HTML-Ansicht geöffnet: {html_path}")
+    if args.open_browser:
+        print(f"HTML-Ansicht geöffnet: {html_path}")
 
 
 def _cmd_summary_sketch(args):
@@ -894,7 +915,8 @@ def _cmd_summary_sketch(args):
     allow_sketches = args.images  # "Bilder"-Chip/Flag, im Sketch-Modus umgedeutet (siehe README)
     prompt = build_sketch_prompt(content, captions, detail_level=args.detail,
                                   allow_sketches=allow_sketches)
-    data = prompt_and_wait(prompt, "Sketch-Lernblatt", parse_fn=parse_sketch_response)
+    data = prompt_and_wait(prompt, "Sketch-Lernblatt", parse_fn=parse_sketch_response,
+                            prompt_out=args.prompt_out, response_file=args.response_file)
 
     out_path = organize_chapter_output(Path(args.out).with_suffix(".html"), pdf_paths)
     saved_images = save_chapter_images(image_pages, out_path.parent / f"{out_path.stem}_bilder")
@@ -904,7 +926,8 @@ def _cmd_summary_sketch(args):
     render_sketch(data, out_path, image_resolver=image_resolver)
     pdf_path, pdf_hint = render_sketch_pdf(out_path)
 
-    open_in_browser(out_path)
+    if args.open_browser:
+        open_in_browser(out_path)
     record_sketch(out_path, pdf_paths)
 
     print(f"Sketch-Lernblatt gespeichert: {out_path}")
@@ -968,7 +991,8 @@ def cmd_flashcards(args):
     pdf_paths = [Path(p) for p in args.pdfs]
     content, image_pages = build_content(pdf_paths)
     captions = collect_all_captions(image_pages)
-    cards = prompt_and_wait(build_flashcards_prompt(content, captions), "Karteikarten", parse_flashcards)
+    cards = prompt_and_wait(build_flashcards_prompt(content, captions), "Karteikarten", parse_flashcards,
+                             prompt_out=args.prompt_out, response_file=args.response_file)
 
     deck_name = args.deck or pdf_paths[0].parent.name or pdf_paths[0].stem
     out_path = organize_chapter_output(Path(args.out), pdf_paths)
@@ -983,6 +1007,22 @@ def cmd_import(args):
     for path, label in imported:
         print(f"Importiert: {label} ({path})")
     print(f"{len(imported)} Datei(en) in die Bibliothek aufgenommen.")
+
+
+def add_agent_friendly_args(parser, open_help: str):
+    """--prompt-out/--response-file: Zweiphasen-Aufruf für Skripte/KI-Agenten statt
+    Zwischenablage (siehe prompt_and_wait()). --no-open: unterdrückt das automatische
+    Öffnen im Browser, nützlich bei vielen automatisierten Aufrufen nacheinander."""
+    parser.add_argument("--prompt-out", type=Path, default=None,
+                         help="Schreibt nur den Prompt in diese Datei und beendet sofort, "
+                              "ohne auf eine Antwort zu warten (Phase 1 für Skripte/Agenten).")
+    parser.add_argument("--response-file", type=Path, default=None,
+                         help="Liest die Antwort aus dieser Datei statt aus der Zwischenablage, "
+                              "ohne interaktives Warten (Phase 2 für Skripte/Agenten).")
+    parser.add_argument("--open", dest="open_browser", action="store_true", default=True,
+                         help=open_help)
+    parser.add_argument("--no-open", dest="open_browser", action="store_false",
+                         help="Nicht automatisch im Browser öffnen")
 
 
 def main():
@@ -1006,12 +1046,14 @@ def main():
     p_summary.add_argument("--start-page", type=int, default=1,
                             help="Nur bei --mode sketch: Skript-Startseite als Fallback, falls "
                                  "die Fußzeilen-Seitenzahl der ersten PDF-Seite nicht erkannt wird")
+    add_agent_friendly_args(p_summary, "Automatisch im Browser öffnen (Standard)")
     p_summary.set_defaults(func=cmd_summary)
 
     p_cards = sub.add_parser("flashcards", help="Anki-Karteikarten erzeugen")
     p_cards.add_argument("pdfs", nargs="+", help="Ein oder mehrere Kapitel-PDFs")
     p_cards.add_argument("--out", default="karteikarten.apkg", help="Ausgabedatei (.apkg)")
     p_cards.add_argument("--deck", default=None, help="Anki-Deck-Name (z. B. 'DLBMIUID01-01::Kapitel 8'); Standard: Ordnername")
+    add_agent_friendly_args(p_cards, "Vorschau automatisch im Browser öffnen (Standard)")
     p_cards.set_defaults(func=cmd_flashcards)
 
     p_import = sub.add_parser("import", help="Bereits vorhandene .md-/.apkg-Dateien in die Bibliothek aufnehmen")
