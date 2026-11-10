@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Erzeugt Zusammenfassungen oder Anki-Karteikarten aus Kapitel-PDFs per Copy&Paste in ein KI-Chat-Tool deiner Wahl (ChatGPT, Claude, Gemini, ...)."""
 import argparse
+import hashlib
 import html
 import json
 import re
@@ -359,13 +360,21 @@ def save_chapter_images(all_image_pages, out_dir: Path):
 
 
 def organize_chapter_output(out_path: Path, pdf_paths) -> Path:
-    """Legt einen Kapitel-Unterordner an (Name = prettify_stem(out_path.stem)) und verschiebt
-    die Quell-PDFs hinein, damit PDF, Zusammenfassung/Karteikarten, Bilder und HTML-Ansicht
-    eines Kapitels nicht mehr flach im Modulordner verstreut sind.
+    """Legt einen Kapitel-Unterordner an (Name = prettify_stem(pdf_paths[0].stem)) und
+    verschiebt die Quell-PDFs hinein, damit PDF, Zusammenfassung/Karteikarten, Bilder und
+    HTML-Ansicht eines Kapitels nicht mehr flach im Modulordner verstreut sind.
+
+    Der Ordnername kommt bewusst vom ERSTEN PDF, nicht von out_path.stem: ruft man für
+    dieselbe PDF nacheinander summary und flashcards mit ihren jeweiligen Standard-
+    Ausgabenamen auf ("zusammenfassung.md" bzw. "karteikarten.apkg"), landen sie sonst in
+    zwei verschiedenen Geschwister-Ordnern ("Zusammenfassung"/"Karteikarten") statt
+    zusammen im selben Kapitel-Ordner. pdf_paths[0] ist dabei immer der ursprüngliche,
+    unverschobene Pfad aus den CLI-Argumenten -- resolve_pdf_path() findet die Datei auch,
+    wenn ein vorheriger Aufruf sie inzwischen in genau diesen Ordner verschoben hat.
 
     Idempotent: eine PDF, die schon im Zielordner liegt, wird nicht erneut verschoben.
     """
-    folder = out_path.parent / prettify_stem(out_path.stem)
+    folder = pdf_paths[0].parent / prettify_stem(pdf_paths[0].stem)
     folder.mkdir(parents=True, exist_ok=True)
     for pdf_path in pdf_paths:
         resolved = resolve_pdf_path(pdf_path)
@@ -807,13 +816,31 @@ def is_unchanged_prompt(response: str, prompt: str) -> bool:
     return response.strip() == prompt.strip()
 
 
-def prompt_and_wait(prompt: str, kind: str, parse_fn=lambda r: r):
+def prompt_and_wait(prompt: str, kind: str, parse_fn=lambda r: r,
+                     prompt_out: Path = None, response_file: Path = None):
     """Kopiert den Prompt in die Zwischenablage und wartet auf eine gültige Antwort.
 
     Bei einem Parse-Fehler wird NICHT abgebrochen: der Prompt bleibt in der
     Zwischenablage, man kann die Antwort im Chat-Tool korrigieren, neu kopieren
     und es erneut versuchen, ohne den ganzen Befehl neu starten zu müssen.
+
+    Für Skripte/KI-Agenten (ohne Mensch, der Zwischenablage hin- und herkopiert) gibt es
+    zwei Ausstiege aus dem interaktiven Ablauf, die einen Zwei-Phasen-Aufruf erlauben:
+    --prompt-out schreibt NUR den Prompt in eine Datei und beendet den Befehl sofort
+    (nichts wird gewartet/verarbeitet); ein zweiter Aufruf mit denselben Argumenten plus
+    --response-file liest die fertige Antwort aus einer Datei statt aus der Zwischenablage.
     """
+    if prompt_out is not None:
+        prompt_out.write_text(prompt, encoding="utf-8")
+        print(f"Prompt geschrieben nach {prompt_out} (kein Zwischenablage-Warten).")
+        raise SystemExit(0)
+
+    if response_file is not None:
+        response = response_file.read_text(encoding="utf-8").strip()
+        if not response:
+            raise SystemExit(f"--response-file ist leer: {response_file}")
+        return parse_fn(response)
+
     copy_to_clipboard(prompt)
     print(f"Prompt in die Zwischenablage kopiert ({kind}).")
     print("1) Füge ihn in ChatGPT/Claude/Gemini (o.ä.) ein  2) warte die Antwort ab  3) kopiere NUR die Antwort")
@@ -850,7 +877,8 @@ def _cmd_summary_classic(args):
     captions = collect_all_captions(image_pages)
     prompt = build_summary_prompt(content, captions, detail_level=args.detail,
                                    include_glossary=args.glossar)
-    response = prompt_and_wait(prompt, "Zusammenfassung")
+    response = prompt_and_wait(prompt, "Zusammenfassung",
+                                prompt_out=args.prompt_out, response_file=args.response_file)
 
     out_path = organize_chapter_output(Path(args.out), pdf_paths)
     saved_images = save_chapter_images(image_pages, out_path.parent / f"{out_path.stem}_bilder")
@@ -868,7 +896,8 @@ def _cmd_summary_classic(args):
 
     html_path = out_path.with_suffix(".html")
     html_path.write_text(render_summary_html(full_md, [p.name for p in pdf_paths]), encoding="utf-8")
-    open_in_browser(html_path)
+    if args.open_browser:
+        open_in_browser(html_path)
     record_summary(out_path, html_path, pdf_paths, detail_level=args.detail,
                     has_images=any_images_found(image_pages), has_glossary=args.glossar)
 
@@ -876,7 +905,8 @@ def _cmd_summary_classic(args):
     if saved_images:
         placed = len(saved_images) - len(leftover_images)
         print(f"{placed} Bild(er) im Text platziert, {len(leftover_images)} zusätzlich angehängt.")
-    print(f"HTML-Ansicht geöffnet: {html_path}")
+    if args.open_browser:
+        print(f"HTML-Ansicht geöffnet: {html_path}")
 
 
 def _cmd_summary_sketch(args):
@@ -895,7 +925,8 @@ def _cmd_summary_sketch(args):
     allow_sketches = args.images  # "Bilder"-Chip/Flag, im Sketch-Modus umgedeutet (siehe README)
     prompt = build_sketch_prompt(content, captions, detail_level=args.detail,
                                   allow_sketches=allow_sketches)
-    data = prompt_and_wait(prompt, "Sketch-Lernblatt", parse_fn=parse_sketch_response)
+    data = prompt_and_wait(prompt, "Sketch-Lernblatt", parse_fn=parse_sketch_response,
+                            prompt_out=args.prompt_out, response_file=args.response_file)
 
     out_path = organize_chapter_output(Path(args.out).with_suffix(".html"), pdf_paths)
     saved_images = save_chapter_images(image_pages, out_path.parent / f"{out_path.stem}_bilder")
@@ -905,7 +936,8 @@ def _cmd_summary_sketch(args):
     _, layout_warning = render_sketch(data, out_path, image_resolver=image_resolver)
     pdf_path, pdf_hint = render_sketch_pdf(out_path)
 
-    open_in_browser(out_path)
+    if args.open_browser:
+        open_in_browser(out_path)
     record_sketch(out_path, pdf_paths)
 
     print(f"Sketch-Lernblatt gespeichert: {out_path}")
@@ -917,11 +949,76 @@ def _cmd_summary_sketch(args):
         print(pdf_hint)
 
 
-def build_flashcards_deck(cards, image_pages, out_path: Path, deck_name: str):
+def stable_id(text: str) -> int:
+    """Deterministische Anki-ID aus einem Namen.
+
+    Pythons eingebautes hash() ist für Strings pro Prozess zufällig gesalzen
+    (PYTHONHASHSEED) -- zwei Läufe mit demselben deck_name würden damit zwei
+    verschiedene IDs ergeben, Anki könnte ein neu generiertes Deck dann nicht
+    mehr als Update desselben Decks erkennen, sondern legt ein zweites an.
+    """
+    return int(hashlib.sha256(text.encode("utf-8")).hexdigest(), 16) % (10**10)
+
+
+FLASHCARDS_PREVIEW_TEMPLATE = """<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Karteikarten-Vorschau · @@DECK@@</title>
+<style>
+  body{ font-family:-apple-system,system-ui,sans-serif; max-width:680px; margin:40px auto;
+        padding:0 20px; color:#222; background:#fff; }
+  h1{ font-size:21px; margin-bottom:4px; }
+  .count{ color:#666; margin-bottom:24px; font-size:14px; }
+  details{ border:1px solid #ddd; border-radius:8px; margin-bottom:10px; padding:12px 16px; }
+  summary{ cursor:pointer; font-weight:600; }
+  summary::-webkit-details-marker{ color:#0E7C66; }
+  .back{ margin-top:10px; padding-top:10px; border-top:1px solid #eee; }
+  .back img{ max-width:100%; border-radius:4px; }
+</style>
+</head>
+<body>
+<h1>@@DECK@@</h1>
+<p class="count">@@COUNT@@ Karte(n) — zum Aufdecken klicken.</p>
+@@CARDS@@
+</body>
+</html>
+"""
+
+IMG_SRC_RE = re.compile(r'<img src="([^"]+)">')
+
+
+def render_flashcards_html(cards, deck_name: str, bilder_dirname: str) -> str:
+    """Rendert eine Vorschau der fertigen Karten als eigenständige HTML-Seite, damit man
+    sich das Ergebnis ansehen kann, ohne dafür erst Anki zu öffnen (v.a. nützlich beim
+    manuellen Copy&Paste-Ablauf, um VOR dem .apkg-Import zu sehen, wie die Karten
+    aussehen). Die "back"-Felder enthalten bereits fertiges HTML (ggf. mit
+    <img src="dateiname.jpg">, siehe attach_images_to_cards()) -- für die Vorschau wird
+    davor nur der Bilder-Unterordner eingefügt, denn im .apkg selbst liegen die Bilder
+    flach (Anki kennt keine Unterordner in seinen Medien)."""
+    def with_bilder_prefix(back: str) -> str:
+        return IMG_SRC_RE.sub(rf'<img src="{bilder_dirname}/\1">', back)
+
+    items = "\n".join(
+        f'<details><summary>{i}. {card["front"]}</summary>'
+        f'<div class="back">{with_bilder_prefix(card["back"])}</div></details>'
+        for i, card in enumerate(cards, start=1)
+    )
+
+    out = FLASHCARDS_PREVIEW_TEMPLATE
+    out = out.replace("@@DECK@@", html.escape(deck_name))
+    out = out.replace("@@COUNT@@", str(len(cards)))
+    out = out.replace("@@CARDS@@", items)
+    return out
+
+
+def build_flashcards_deck(cards, image_pages, out_path: Path, deck_name: str,
+                           preview_path: Path = None):
     import genanki
 
-    deck_id = abs(hash(deck_name)) % (10**10)
-    model_id = abs(hash(deck_name + "_model")) % (10**10)
+    deck_id = stable_id(deck_name)
+    model_id = stable_id(deck_name + "_model")
 
     model = genanki.Model(
         model_id,
@@ -944,14 +1041,21 @@ def build_flashcards_deck(cards, image_pages, out_path: Path, deck_name: str):
         deck.add_note(genanki.Note(model=model, fields=[card["front"], card["back"]]))
 
     media_files = [str(p) for p in embedded_paths]
+    extra_cards = []
     for pdf_path, page_num, img_path, caption in leftover_images:
         front = caption or f"Bild – {pdf_path.stem}, Seite {page_num}"
-        deck.add_note(genanki.Note(model=model, fields=[front, f'<img src="{img_path.name}">']))
+        back = f'<img src="{img_path.name}">'
+        deck.add_note(genanki.Note(model=model, fields=[front, back]))
         media_files.append(str(img_path))
+        extra_cards.append({"front": front, "back": back})
 
     package = genanki.Package(deck)
     package.media_files = media_files
     package.write_to_file(str(out_path))
+
+    if preview_path is not None:
+        preview_html = render_flashcards_html(cards + extra_cards, deck_name, f"{out_path.stem}_bilder")
+        preview_path.write_text(preview_html, encoding="utf-8")
 
     return len(cards), len(embedded_paths), len(leftover_images)
 
@@ -960,14 +1064,21 @@ def cmd_flashcards(args):
     pdf_paths = [Path(p) for p in args.pdfs]
     content, image_pages = build_content(pdf_paths)
     captions = collect_all_captions(image_pages)
-    cards = prompt_and_wait(build_flashcards_prompt(content, captions), "Karteikarten", parse_flashcards)
+    cards = prompt_and_wait(build_flashcards_prompt(content, captions), "Karteikarten", parse_flashcards,
+                             prompt_out=args.prompt_out, response_file=args.response_file)
 
     deck_name = args.deck or pdf_paths[0].parent.name or pdf_paths[0].stem
     out_path = organize_chapter_output(Path(args.out), pdf_paths)
-    total, with_image, extra_image_cards = build_flashcards_deck(cards, image_pages, out_path, deck_name)
+    preview_path = out_path.with_suffix(".preview.html") if args.open_browser else None
+    total, with_image, extra_image_cards = build_flashcards_deck(
+        cards, image_pages, out_path, deck_name, preview_path=preview_path,
+    )
     record_flashcards(out_path, deck_name)
 
     print(f"{total} Karteikarte(n) ({with_image} mit Bild) + {extra_image_cards} zusätzliche Bild-Karte(n) gespeichert: {out_path}")
+    if preview_path is not None:
+        open_in_browser(preview_path)
+        print(f"Vorschau geöffnet: {preview_path}")
 
 
 def cmd_import(args):
@@ -975,6 +1086,22 @@ def cmd_import(args):
     for path, label in imported:
         print(f"Importiert: {label} ({path})")
     print(f"{len(imported)} Datei(en) in die Bibliothek aufgenommen.")
+
+
+def add_agent_friendly_args(parser, open_help: str):
+    """--prompt-out/--response-file: Zweiphasen-Aufruf für Skripte/KI-Agenten statt
+    Zwischenablage (siehe prompt_and_wait()). --no-open: unterdrückt das automatische
+    Öffnen im Browser, nützlich bei vielen automatisierten Aufrufen nacheinander."""
+    parser.add_argument("--prompt-out", type=Path, default=None,
+                         help="Schreibt nur den Prompt in diese Datei und beendet sofort, "
+                              "ohne auf eine Antwort zu warten (Phase 1 für Skripte/Agenten).")
+    parser.add_argument("--response-file", type=Path, default=None,
+                         help="Liest die Antwort aus dieser Datei statt aus der Zwischenablage, "
+                              "ohne interaktives Warten (Phase 2 für Skripte/Agenten).")
+    parser.add_argument("--open", dest="open_browser", action="store_true", default=True,
+                         help=open_help)
+    parser.add_argument("--no-open", dest="open_browser", action="store_false",
+                         help="Nicht automatisch im Browser öffnen")
 
 
 def main():
@@ -998,12 +1125,14 @@ def main():
     p_summary.add_argument("--start-page", type=int, default=1,
                             help="Nur bei --mode sketch: Skript-Startseite als Fallback, falls "
                                  "die Fußzeilen-Seitenzahl der ersten PDF-Seite nicht erkannt wird")
+    add_agent_friendly_args(p_summary, "Automatisch im Browser öffnen (Standard)")
     p_summary.set_defaults(func=cmd_summary)
 
     p_cards = sub.add_parser("flashcards", help="Anki-Karteikarten erzeugen")
     p_cards.add_argument("pdfs", nargs="+", help="Ein oder mehrere Kapitel-PDFs")
     p_cards.add_argument("--out", default="karteikarten.apkg", help="Ausgabedatei (.apkg)")
     p_cards.add_argument("--deck", default=None, help="Anki-Deck-Name (z. B. 'DLBMIUID01-01::Kapitel 8'); Standard: Ordnername")
+    add_agent_friendly_args(p_cards, "Vorschau automatisch im Browser öffnen (Standard)")
     p_cards.set_defaults(func=cmd_flashcards)
 
     p_import = sub.add_parser("import", help="Bereits vorhandene .md-/.apkg-Dateien in die Bibliothek aufnehmen")
